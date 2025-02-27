@@ -1,86 +1,78 @@
 CREATE TABLE User (
-    User_name VARCHAR(255) PRIMARY KEY,
-    Name VARCHAR(255) NOT NULL,
-    Password VARCHAR(255) NOT NULL,
-    Email VARCHAR(255),
+    User_name VARCHAR(20) PRIMARY KEY,
+    Password VARCHAR(128) NOT NULL,
+    Name VARCHAR(60) NOT NULL,
+    Email VARCHAR(128),
     Contact_number VARCHAR(20) NOT NULL,
-    User_type VARCHAR(50) CHECK (User_type IN ('ADMIN', 'CITIZEN', 'GOVERNMENT_AGENCY', 'PANCHAYAT_EMPLOYEE')) NOT NULL,
-    Citizen_fk INT REFERENCES Citizen(Citizen_Id),
-    Government_agencies_fk INT REFERENCES Government_agencies(Agency_Id),
-    Admin_fk INT REFERENCES Admin(Admin_Id),
-    Panchayat_employee_fk INT REFERENCES Panchayat_employee(Member_Id)
+    User_type VARCHAR(30) CHECK (User_type IN ('ADMIN', 'CITIZEN', 'GOVERNMENT_AGENCY', 'PANCHAYAT_EMPLOYEE')) NOT NULL,
+    Citizen_fk INT REFERENCES Citizen(Citizen_id) UNIQUE,
+    Government_agencies_fk INT REFERENCES Government_agencies(Agency_id) UNIQUE,
+    Admin_fk INT REFERENCES Admin(Admin_id) UNIQUE,
+    Panchayat_employee_fk INT REFERENCES Panchayat_employee(Member_id) UNIQUE
 );
 
 CREATE TABLE Citizen (
-    Citizen_Id INT PRIMARY KEY,
-    User_name INT UNIQUE,
-    Date_of_birth DATE,
+    Citizen_id SERIAL PRIMARY KEY,
+    Date_of_birth DATE NOT NULL,
     Date_of_death DATE,
-    Gender VARCHAR(10) CHECK (Gender IN ('Male', 'Female', 'Other')),
-    Address TEXT,
-    Educational_qualification VARCHAR(50) CHECK (Educational_qualification IN ('Illiterate', 'Primary', 'Secondary', '10th', '12th', 'Graduate', 'Post-Graduate')),
-    Occupation VARCHAR(255),
-    Family_fk INT,
-    FOREIGN KEY (Family_fk) REFERENCES Family(Family_Id),
-    FOREIGN KEY (User_name) REFERENCES User(User_name)
+    Gender VARCHAR(10) CHECK (Gender IN ('Male', 'Female', 'Other')) NOT NULL,
+    Address TEXT NOT NULL,
+    Educational_qualification VARCHAR(20) CHECK (Educational_qualification IN ('Illiterate', 'Primary', 'Secondary', '10th', '12th', 'Graduate', 'Post-Graduate')) NOT NULL,
+    Occupation VARCHAR(100) NOT NULL,
+    Family_fk INT REFERENCES Family(Family_id),
+    User_name VARCHAR(20) REFERENCES User(User_name) NOT NULL UNIQUE
 );
 
 CREATE TABLE Government_agencies (
-    Agency_Id INT PRIMARY KEY,
-    User_name INT UNIQUE,
-    Role VARCHAR(255),
-    FOREIGN KEY (User_name) REFERENCES User(User_name)
+    Agency_id SERIAL PRIMARY KEY,
+    Role VARCHAR(100) NOT NULL,
+    User_name VARCHAR(20) REFERENCES User(User_name) NOT NULL UNIQUE
 );
 
 CREATE TABLE Admin (
-    Admin_id INT PRIMARY KEY,
-    User_name INT UNIQUE,
-    Gender VARCHAR(10),
-    Date_of_birth DATE,
-    Address VARCHAR(255),
-    FOREIGN KEY (User_name) REFERENCES User(User_name)
+    Admin_id SERIAL PRIMARY KEY,
+    Gender VARCHAR(10) CHECK (Gender IN ('Male', 'Female', 'Other')) NOT NULL,
+    Date_of_birth DATE NOT NULL,
+    Address TEXT NOT NULL,
+    User_name VARCHAR(20) REFERENCES User(User_name) NOT NULL UNIQUE
 );
 
 CREATE TABLE Panchayat_employee (
-    Member_Id INT PRIMARY KEY,
-    Role VARCHAR(255),
-    User_name INT UNIQUE,
-    Citizen_fk INT UNIQUE,
-    FOREIGN KEY (Citizen_fk) REFERENCES Citizen(Citizen_Id),
-    FOREIGN KEY (User_name) REFERENCES User(User_name)
+    Member_id SERIAL PRIMARY KEY,
+    Role VARCHAR(100) NOT NULL,
+    Citizen_fk INT UNIQUE REFERENCES Citizen(Citizen_id) NOT NULL UNIQUE,
+    User_name VARCHAR(20) REFERENCES User(User_name) NOT NULL UNIQUE
 );
 
 CREATE TABLE Census (
-    Census_id INT PRIMARY KEY,
-    Year INT,
-    Total_population INT,
-    Male_population INT,
-    Female_population INT,
-    Literacy_Rate FLOAT
+    Year INT PRIMARY KEY,
+    Total_population INT NOT NULL,
+    Male_population INT NOT NULL,
+    Female_population INT NOT NULL,
+    Literacy_Rate FLOAT NOT NULL
 );
 
 CREATE TABLE Agricultural_land (
-    Agri_land_Id INT PRIMARY KEY,
-    Year INT,
-    Crop_type VARCHAR(255),
-    Area_cultivated FLOAT,
-    Yield FLOAT,
-    Season VARCHAR(50),
-    Asset_fk INT,
-    FOREIGN KEY (Asset_fk) REFERENCES Assets(Asset_Id)
+    Agri_land_id SERIAL PRIMARY KEY,
+    Year INT NOT NULL,
+    Season VARCHAR(20) NOT NULL,
+    Crop_type VARCHAR(30) NOT NULL,
+    Area_cultivated FLOAT NOT NULL,
+    Yield FLOAT NOT NULL,
+    Asset_fk INT REFERENCES Assets(Asset_id) NOT NULL
 );
 
 CREATE TABLE Financial_data (
-    Financial_Id INT PRIMARY KEY,
-    Annual_Income FLOAT,
-    Income_source VARCHAR(255),
-    Tax_paid FLOAT,
-    Tax_liability FLOAT,
-    Debt_liability FLOAT,
+    Financial_id SERIAL PRIMARY KEY,
+    year INT NOT NULL,
+    Annual_Income FLOAT NOT NULL,
+    Income_source VARCHAR(100) NOT NULL,
+    Tax_paid FLOAT NOT NULL,
+    Tax_liability FLOAT NOT NULL,
+    Debt_liability FLOAT NOT NULL,
     Credit_score INT,
-    Last_updated TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
-    Citizen_fk INT,
-    FOREIGN KEY (Citizen_fk) REFERENCES Citizen(Citizen_Id)
+    Last_updated TIMESTAMP DEFAULT CURRENT_TIMESTAMP NOT NULL,
+    Citizen_fk INT REFERENCES Citizen(Citizen_id) NOT NULL
 );
 
 CREATE TABLE Environmental_data (
@@ -94,69 +86,59 @@ CREATE TABLE Environmental_data (
 );
 
 CREATE TABLE Family (
-    Family_Id INT PRIMARY KEY,
-    Address TEXT,
-    Family_head INT,
-    FOREIGN KEY (Family_head) REFERENCES Citizen(Citizen_Id)
+    Family_id SERIAL PRIMARY KEY,
+    Family_head INT REFERENCES Citizen(Citizen_id)
 );
 
 CREATE TABLE Welfare_schemes (
-    Scheme_Id INT PRIMARY KEY,
-    Scheme_name VARCHAR(255),
+    Scheme_id SERIAL PRIMARY KEY,
+    Scheme_name VARCHAR(100) NOT NULL,
     Description TEXT,
     Application_deadline DATE
 );
 
 CREATE TABLE Infrastructure (
-    Infra_Id INT PRIMARY KEY,
+    Infra_id SERIAL PRIMARY KEY,
     Description TEXT,
     Location TEXT,
-    Funding FLOAT,
-    Actual_cost FLOAT
+    Funding FLOAT NOT NULL,
+    Actual_cost FLOAT NOT NULL DEFAULT 0
 );
 
 CREATE TABLE Activity_log (
-    Log_Id INT PRIMARY KEY,
-    Time TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
-    Affected_user_fk INT,
-    From_value TEXT,
+    Log_id SERIAL PRIMARY KEY,
+    Time TIMESTAMP DEFAULT CURRENT_TIMESTAMP NOT NULL,
+    From_value TEXT NOT NULL,
     New_val TEXT,
     Old_val TEXT,
-    User_name_fk INT,
-    FOREIGN KEY (Affected_user_fk) REFERENCES User(User_name),
-    FOREIGN KEY (User_name_fk) REFERENCES User(User_name)
+    Affected_user_fk VARCHAR(20) REFERENCES User(User_name),
+    User_name_fk VARCHAR(20) REFERENCES User(User_name) NOT NULL
 );
 
 CREATE TABLE Issues (
-    Issue_Id INT PRIMARY KEY,
-    Citizen_fk INT,
-    Description TEXT,
-    status VARCHAR(50),
-    FOREIGN KEY (Citizen_fk) REFERENCES Citizen(Citizen_Id)
+    Issue_id SERIAL PRIMARY KEY,
+    Description TEXT NOT NULL,
+    status VARCHAR(50) NOT NULL DEFAULT 'OPEN',
+    Citizen_fk INT REFERENCES Citizen(Citizen_id) NOT NULL
 );
 
 CREATE TABLE Documents (
-    Doc_Id INT PRIMARY KEY,
-    Citizen_fk INT,
-    Type VARCHAR(255),
+    Doc_id SERIAL PRIMARY KEY,
+    Type VARCHAR(100) NOT NULL,
     Pdf_data BYTEA NOT NULL,
-    FOREIGN KEY (Citizen_fk) REFERENCES Citizen(Citizen_Id)
+    Citizen_fk INT REFERENCES Citizen(Citizen_id) NOT NULL
 );
 
 CREATE TABLE Assets (
-    Asset_Id INT PRIMARY KEY,
-    Citizen_fk INT,
-    Type VARCHAR(255),
-    Valuation FLOAT,
-    Is_deleted BOOLEAN,
-    FOREIGN KEY (Citizen_fk) REFERENCES Citizen(Citizen_Id)
+    Asset_id SERIAL PRIMARY KEY,
+    Type VARCHAR(100) NOT NULL,
+    Valuation FLOAT NOT NULL,
+    Citizen_fk INT REFERENCES Citizen(Citizen_id) NOT NULL
 );
 
 CREATE TABLE Welfare_enrol (
-    Citizen_fk INT,
-    Scheme_fk INT,
-    PRIMARY KEY (Citizen_fk, Scheme_fk),
-    status VARCHAR(50),
-    FOREIGN KEY (Citizen_fk) REFERENCES Citizen(Citizen_Id),
-    FOREIGN KEY (Scheme_fk) REFERENCES Welfare_schemes(Scheme_Id)
+    Citizen_fk INT REFERENCES Citizen(Citizen_id) NOT NULL,
+    Scheme_fk INT REFERENCES Welfare_schemes(Scheme_id) NOT NULL,
+    status VARCHAR(50) NOT NULL DEFAULT 'PENDING',
+    PRIMARY KEY (Citizen_fk, Scheme_fk)
 )

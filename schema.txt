@@ -1,10 +1,12 @@
 CREATE TABLE User (
-    User_name VARCHAR(20) PRIMARY KEY,
+    User_id SERIAL PRIMARY KEY
+    User_name VARCHAR(20) NOT NULL UNIQUE,
     Password VARCHAR(128) NOT NULL,
     Name VARCHAR(60) NOT NULL,
     Email VARCHAR(128),
     Contact_number VARCHAR(20) NOT NULL,
     User_type VARCHAR(30) CHECK (User_type IN ('ADMIN', 'CITIZEN', 'GOVERNMENT_AGENCY', 'PANCHAYAT_EMPLOYEE')) NOT NULL,
+    Is_verified BOOLEAN NOT NULL DEFAULT FALSE,
     Citizen_fk INT REFERENCES Citizen(Citizen_id) UNIQUE,
     Government_agencies_fk INT REFERENCES Government_agencies(Agency_id) UNIQUE,
     Admin_fk INT REFERENCES Admin(Admin_id) UNIQUE,

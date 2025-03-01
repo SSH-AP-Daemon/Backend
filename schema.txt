@@ -104,7 +104,8 @@ CREATE TABLE Infrastructure (
     Description TEXT,
     Location TEXT,
     Funding FLOAT NOT NULL,
-    Actual_cost FLOAT NOT NULL DEFAULT 0
+    Actual_cost FLOAT NOT NULL DEFAULT 0,
+    Government_agencies_fk INT REFERENCES Government_agencies(Agency_id)
 );
 
 CREATE TABLE Activity_log (

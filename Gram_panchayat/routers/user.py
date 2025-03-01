@@ -3,7 +3,7 @@ from sqlalchemy.orm import Session
 from ..database import get_db
 from .. import models,schemas
 from ..hashing import Hash
-from  .. import token
+from  .. import jwt_handler
 from fastapi.security import OAuth2PasswordRequestForm
 
 
@@ -80,7 +80,7 @@ async def login_user(request:schemas.Login,db:Session = Depends(get_db)):
         raise HTTPException(status_code=status.HTTP_404_NOT_FOUND,detail=f"Incorrect Password")
     if(user.is_verified == 0):
         raise HTTPException(status_code=status.HTTP_404_NOT_FOUND,detail=f"User not verified")
-    access_token = token.create_access_token(
+    access_token = jwt_handler.create_access_token(
         data={"sub": user.User_name}
     )
     

@@ -13,7 +13,7 @@ router = APIRouter(
 )
 
 @router.post('/register', status_code=status.HTTP_201_CREATED)
-def create_user(payload: schemas.UserRegisterUnion, db: Session = Depends(get_db)):
+async def create_user(payload: schemas.UserRegisterUnion, db: Session = Depends(get_db)):
     
     if db.query(models.User).filter(models.User.User_name == payload.User_name).first():
         raise HTTPException(status_code=status.HTTP_400_BAD_REQUEST, detail="User already exists")
@@ -34,7 +34,7 @@ def create_user(payload: schemas.UserRegisterUnion, db: Session = Depends(get_db
     
     if isinstance(payload, schemas.Citizen):
         new_detail = models.Citizen(
-            
+            User_name=payload.User_name,
             Date_of_birth=payload.Date_of_birth,
             Date_of_death=payload.Date_of_death,
             Gender=payload.Gender,
@@ -45,7 +45,7 @@ def create_user(payload: schemas.UserRegisterUnion, db: Session = Depends(get_db
         db.add(new_detail)
     elif isinstance(payload, schemas.Admin):
         new_detail = models.Admin(
-           
+            User_name=payload.User_name,
             Gender=payload.Gender,
             Date_of_birth=payload.Date_of_birth,
             Address=payload.Address
@@ -53,13 +53,13 @@ def create_user(payload: schemas.UserRegisterUnion, db: Session = Depends(get_db
         db.add(new_detail)
     elif isinstance(payload, schemas.PanchayatEmployee):
         new_detail = models.PanchayatEmployee(
-            
+            User_name=payload.User_name,
             Role=payload.Role
         )
         db.add(new_detail)
     elif isinstance(payload, schemas.GovernmentAgencies):
         new_detail = models.GovernmentAgencies(
-           
+            User_name=payload.User_name,
             Role=payload.Role
         )
         db.add(new_detail)
@@ -72,12 +72,14 @@ def create_user(payload: schemas.UserRegisterUnion, db: Session = Depends(get_db
 
 
 @router.post('/login',status_code=status.HTTP_200_OK)
-def login_user(request:schemas.Login,db:Session = Depends(get_db)):
+async def login_user(request:schemas.Login,db:Session = Depends(get_db)):
     user = db.query(models.User).filter(models.User.User_name == request.User_name).first()
     if not user:
         raise HTTPException(status_code=status.HTTP_404_NOT_FOUND,detail=f"Invalid Credentials")
     if not Hash.verify(user.Password,request.Password):
         raise HTTPException(status_code=status.HTTP_404_NOT_FOUND,detail=f"Incorrect Password")
+    if(user.is_verified == 0):
+        raise HTTPException(status_code=status.HTTP_404_NOT_FOUND,detail=f"User not verified")
     access_token = token.create_access_token(
         data={"sub": user.User_name}
     )

@@ -1,7 +1,6 @@
-
 from pydantic import BaseModel, Field
 from typing import Optional, Literal, Union, Annotated, List
-from datetime import date
+from datetime import date, datetime
 
 # Base Models
 class BaseUser(BaseModel):
@@ -164,3 +163,86 @@ class CitizenProfileResponse(BaseModel):
 class ResponseModel(BaseModel):
     message: str
     statusCode: int
+    
+class DocumentData(BaseModel):
+    Type: str
+    Pdf_data: bytes
+    
+    class Config:
+        orm_mode = True
+
+class DocumentResponse(BaseModel):
+    data: List[DocumentData]
+    message: str
+    statusCode: int
+    
+    class Config:
+        orm_mode = True
+
+# For Financial Data endpoint
+class FinancialRecordData(BaseModel):
+    year: int
+    Annual_Income: float
+    Income_source: str
+    Tax_paid: float
+    Tax_liability: float
+    Debt_liability: float
+    Credit_score: Optional[int] = None
+    Last_updated: datetime
+    
+    class Config:
+        orm_mode = True
+
+class FinancialDataResponse(BaseModel):
+    data: List[FinancialRecordData]
+    message: str
+    statusCode: int
+    
+    class Config:
+        orm_mode = True
+
+# For Welfare Scheme endpoint
+class WelfareSchemeData(BaseModel):
+    Scheme_fk: int
+    Scheme_name: str
+    Description: Optional[str] = None
+    Application_deadline: Optional[date] = None
+    status: str  # "NOT_APPLIED", "PENDING", "APPROVED", "REJECTED"
+    
+    class Config:
+        orm_mode = True
+
+class WelfareSchemeResponse(BaseModel):
+    data: List[WelfareSchemeData]
+    message: str
+    statusCode: int
+    
+    class Config:
+        orm_mode = True
+
+# For Welfare Enroll endpoint
+class WelfareEnrolResponse(BaseModel):
+    data: str  # Status of the enrollment
+    message: str
+    statusCode: int
+    
+    class Config:
+        orm_mode = True
+
+# For Infrastructure endpoint
+class InfrastructureData(BaseModel):
+    Description: Optional[str] = None
+    Location: Optional[str] = None
+    Funding: float
+    Actual_cost: float
+    
+    class Config:
+        orm_mode = True
+
+class InfrastructureResponse(BaseModel):
+    data: List[InfrastructureData]
+    message: str
+    statusCode: int
+    
+    class Config:
+        orm_mode = True

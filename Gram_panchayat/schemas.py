@@ -1,3 +1,6 @@
+# Current Date and Time (UTC - YYYY-MM-DD HH:MM:SS formatted): 2025-03-01 17:28:35
+# Current User's Login: SRINJOY59
+
 from pydantic import BaseModel, Field
 from typing import Optional, Literal, Union, Annotated, List
 from datetime import date, datetime
@@ -101,8 +104,16 @@ class AssetsResponse(BaseModel):
     statusCode: int
 
 # Family Models
+class FamilyBase(BaseModel):
+    Head_citizen_id: int
+    Member_citizen_id: int
+    Relationship: str
+    
+    class Config:
+        from_attributes = True
+
 class FamilyMemberData(BaseModel):
-    User_name: str
+    User_name: str  # Keep User_name for display purposes
     
     class Config:
         from_attributes = True
@@ -174,7 +185,7 @@ class DocumentData(BaseModel):
     Pdf_data: bytes
     
     class Config:
-        orm_mode = True
+        from_attributes = True
 
 class DocumentResponse(BaseModel):
     data: List[DocumentData]
@@ -182,9 +193,8 @@ class DocumentResponse(BaseModel):
     statusCode: int
     
     class Config:
-        orm_mode = True
+        from_attributes = True
 
-# For Financial Data endpoint
 class FinancialRecordData(BaseModel):
     year: int
     Annual_Income: float
@@ -196,7 +206,7 @@ class FinancialRecordData(BaseModel):
     Last_updated: datetime
     
     class Config:
-        orm_mode = True
+        from_attributes = True
 
 class FinancialDataResponse(BaseModel):
     data: List[FinancialRecordData]
@@ -204,7 +214,7 @@ class FinancialDataResponse(BaseModel):
     statusCode: int
     
     class Config:
-        orm_mode = True
+        from_attributes = True
 
 # For Welfare Scheme endpoint
 class WelfareSchemeData(BaseModel):
@@ -215,7 +225,7 @@ class WelfareSchemeData(BaseModel):
     status: str  # "NOT_APPLIED", "PENDING", "APPROVED", "REJECTED"
     
     class Config:
-        orm_mode = True
+        from_attributes = True
 
 class WelfareSchemeResponse(BaseModel):
     data: List[WelfareSchemeData]
@@ -223,18 +233,16 @@ class WelfareSchemeResponse(BaseModel):
     statusCode: int
     
     class Config:
-        orm_mode = True
+        from_attributes = True
 
-# For Welfare Enroll endpoint
 class WelfareEnrolResponse(BaseModel):
-    data: str  # Status of the enrollment
+    data: str  
     message: str
     statusCode: int
     
     class Config:
-        orm_mode = True
+        from_attributes = True
 
-# For Infrastructure endpoint
 class InfrastructureData(BaseModel):
     Description: Optional[str] = None
     Location: Optional[str] = None
@@ -242,7 +250,7 @@ class InfrastructureData(BaseModel):
     Actual_cost: float
     
     class Config:
-        orm_mode = True
+        from_attributes = True
 
 class InfrastructureResponse(BaseModel):
     data: List[InfrastructureData]
@@ -250,4 +258,56 @@ class InfrastructureResponse(BaseModel):
     statusCode: int
     
     class Config:
-        orm_mode = True
+        from_attributes = True
+        
+class WelfareSchemeCreate(BaseModel):
+    Scheme_name: str
+    Description: Optional[str] = None
+    Application_deadline: Optional[date] = None
+    
+    class Config:
+        from_attributes = True
+
+class WelfareSchemeCreateResponse(BaseModel):
+    Scheme_id: int
+    message: str
+    statusCode: int
+    
+    class Config:
+        from_attributes = True
+
+# Welfare scheme models for government agencies
+class WelfareSchemeAgencyData(BaseModel):
+    Scheme_id: int
+    Scheme_name: str
+    Description: Optional[str] = None
+    Application_deadline: Optional[date] = None
+    
+    class Config:
+        from_attributes = True
+
+class WelfareSchemeListResponse(BaseModel):
+    data: List[WelfareSchemeAgencyData]
+    message: str
+    statusCode: int
+    
+    class Config:
+        from_attributes = True
+
+# User login response
+class UserLoginResponse(BaseModel):
+    JWT: str
+    token_type: str
+    Name: str
+    User_name: str
+    User_type: str
+    Email: Optional[str] = None
+    Contact_number: str
+    
+    class Config:
+        from_attributes = True
+
+# User login request
+class UserLogin(BaseModel):
+    username: str
+    password: str

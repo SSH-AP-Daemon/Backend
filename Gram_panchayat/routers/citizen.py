@@ -673,7 +673,7 @@ def enrol_in_welfare_scheme(
             )
         
         # Check if application deadline has passed
-        if scheme.Application_deadline and scheme.Application_deadline < date.today():
+        if scheme.Application_deadline and scheme.Application_deadline < (date.today()):
             logger.error(f"Application deadline for scheme {Scheme_id} has passed")
             raise HTTPException(
                 status_code=status.HTTP_400_BAD_REQUEST,

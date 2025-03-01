@@ -158,6 +158,7 @@ class WelfareScheme(Base):
     Description = Column(Text)
     Application_deadline = Column(Date)
     Agency_id = Column(Integer, ForeignKey('Government_agencies.Agency_id'), nullable=False)
+    # enrollments = relationship("WelfareEnrol", back_populates="scheme", cascade="all, delete-orphan")
     
     enrollments = relationship("WelfareEnrol", back_populates="scheme", cascade="all, delete-orphan")
     agency = relationship("GovernmentAgencies", back_populates="schemes")

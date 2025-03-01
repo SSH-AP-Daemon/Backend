@@ -286,6 +286,78 @@ def get_citizen_issues(
             status_code=status.HTTP_500_INTERNAL_SERVER_ERROR,
             detail=f"Error retrieving issues: {str(e)}"
         )
+
+@router.post('/issues', response_model=schemas.IssueCreateResponse, status_code=status.HTTP_201_CREATED)
+def create_citizen_issue(
+    issue_data: schemas.IssueCreate,
+    db: Session = Depends(get_db),
+    current_user: models.User = Depends(get_current_user)
+):
+    logger.info(f"create_citizen_issue called for user: {current_user.User_name}")
+    
+    is_citizen(current_user)
+    citizen = get_citizen_record(current_user, db)
+    
+    try:
+        inspector = inspect(db.bind)
+        columns = [col['name'] for col in inspector.get_columns('Issue')]
+        logger.info(f"Issue table columns: {columns}")
+        
+        if 'Citizen_id' in columns:
+            insert_query = text("""
+                INSERT INTO Issue (Citizen_id, description, status, created_at, updated_at)
+                VALUES (:citizen_id, :description, :status, CURRENT_TIMESTAMP, CURRENT_TIMESTAMP)
+                RETURNING Issue_id
+            """)
+            result = db.execute(
+                insert_query,
+                {
+                    "citizen_id": citizen.Citizen_id,
+                    "description": issue_data.description,
+                    "status": "PENDING"
+                }
+            )
+        elif 'User_name' in columns:
+            # Old schema
+            insert_query = text("""
+                INSERT INTO Issue (User_name, description, status, created_at, updated_at)
+                VALUES (:username, :description, :status, CURRENT_TIMESTAMP, CURRENT_TIMESTAMP)
+                RETURNING Issue_id
+            """)
+            result = db.execute(
+                insert_query,
+                {
+                    "username": current_user.User_name,
+                    "description": issue_data.description,
+                    "status": "PENDING"
+                }
+            )
+        else:
+            logger.error("Unknown Issue table schema")
+            raise HTTPException(
+                status_code=status.HTTP_500_INTERNAL_SERVER_ERROR,
+                detail="Database schema error"
+            )
+        
+        # Get the created issue ID
+        new_issue_id = result.scalar()
+        db.commit()
+        
+        logger.info(f"Created issue with ID: {new_issue_id}")
+        
+        return schemas.IssueCreateResponse(
+            Issue_id=new_issue_id,
+            message="Issue created successfully",
+            statusCode=status.HTTP_201_CREATED
+        )
+        
+    except Exception as e:
+        logger.error(f"Error in create_citizen_issue: {str(e)}")
+        db.rollback()
+        raise HTTPException(
+            status_code=status.HTTP_500_INTERNAL_SERVER_ERROR,
+            detail=f"Error creating issue: {str(e)}"
+        )
         
 @router.delete('/issue', status_code=status.HTTP_200_OK)
 def delete_citizen_issue(
@@ -299,7 +371,6 @@ def delete_citizen_issue(
     citizen = get_citizen_record(current_user, db)
     
     try:
-        # First check if issue exists
         issue_query = text("SELECT Issue_id, description, status FROM Issue WHERE Issue_id = :issue_id")
         issue = db.execute(issue_query, {"issue_id": Issue_id}).first()
         
@@ -334,7 +405,7 @@ def delete_citizen_issue(
             )
         
         # Check if issue is in 'OPEN' status
-        if issue.status != 'OPEN':
+        if issue.status != 'PENDING':
             logger.error(f"Issue {Issue_id} is not in 'OPEN' status, current status: {issue.status}")
             raise HTTPException(
                 status_code=status.HTTP_403_FORBIDDEN,
@@ -652,7 +723,6 @@ def enrol_in_welfare_scheme(
         )
         
     except HTTPException:
-        # Re-raise HTTP exceptions
         raise
     except Exception as e:
         logger.error(f"Error in enrol_in_welfare_scheme: {str(e)}")
@@ -669,15 +739,11 @@ def get_infrastructure_projects(
 ):
     logger.info(f"get_infrastructure_projects called by user: {current_user.User_name}")
     
-    # Check if the user is a citizen
     is_citizen(current_user)
     
-    # Verify citizen exists
     citizen = get_citizen_record(current_user, db)
     
     try:
-        # Infrastructure is not linked to citizens directly, it's a public resource
-        # Use raw SQL to avoid any schema issues
         infra_query = text("""
             SELECT Description, Location, Funding, Actual_cost
             FROM Infrastructure

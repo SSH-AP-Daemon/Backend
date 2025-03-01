@@ -220,7 +220,6 @@ def delete_citizen_issue(
             detail=f"Issue with ID {Issue_id} not found"
         )
     
-    # Check if issue belongs to the current user
     if issue.User_name != current_user.User_name:
         logger.error(f"Issue {Issue_id} does not belong to user {current_user.User_name}")
         raise HTTPException(
@@ -228,7 +227,6 @@ def delete_citizen_issue(
             detail="You can only delete your own issues"
         )
     
-    # Check if issue is in 'OPEN' status
     if issue.status != 'OPEN':
         logger.error(f"Issue {Issue_id} is not in 'OPEN' status, current status: {issue.status}")
         raise HTTPException(
@@ -440,5 +438,30 @@ def get_infrastructure_projects(
         statusCode=status.HTTP_200_OK
     )
     
-
-
+@router.post('/issues', response_model=schemas.IssueCreateResponse, status_code=status.HTTP_201_CREATED)
+def create_citizen_issue(
+    issue_data: schemas.IssueCreate,
+    db: Session = Depends(get_db),
+    current_user: models.User = Depends(get_current_user)
+):
+    logger.info(f"create_citizen_issue called for user: {current_user.User_name}")
+    
+    is_citizen(current_user)
+    
+    new_issue = models.Issue(
+        User_name=current_user.User_name,
+        description=issue_data.description,
+        status="OPEN"  
+    )
+    
+    db.add(new_issue)
+    db.commit()
+    db.refresh(new_issue)
+    
+    logger.info(f"Created issue with ID: {new_issue.Issue_id}")
+    
+    return schemas.IssueCreateResponse(
+        Issue_id=new_issue.Issue_id,
+        message="Issue created successfully",
+        statusCode=status.HTTP_201_CREATED
+    )

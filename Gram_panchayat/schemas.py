@@ -119,8 +119,11 @@ class IssueBase(BaseModel):
     class Config:
         from_attributes = True
 
-class IssueCreate(IssueBase):
-    pass
+class IssueCreate(BaseModel):
+    description: str
+    
+    class Config:
+        from_attributes = True
 
 class IssueData(IssueBase):
     Issue_id: int
@@ -138,8 +141,10 @@ class IssueCreateResponse(BaseModel):
     Issue_id: int
     message: str
     statusCode: int
+    
+    class Config:
+        from_attributes = True
 
-# Profile Models
 class CitizenProfileData(BaseModel):
     User_name: str
     Name: str

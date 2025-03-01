@@ -36,10 +36,8 @@ class Citizen(Base):
     Educational_qualification = Column(String(100), nullable=False)
     Occupation = Column(String(100), nullable=False)
     
-    # Relationship with User
     user = relationship('User', back_populates='citizen')
     
-    # Relationships specific to citizens - moved from User
     documents = relationship("Document", back_populates="citizen", cascade="all, delete-orphan")
     issues = relationship('Issue', back_populates='citizen', cascade="all, delete-orphan")
     financial_data = relationship("FinancialData", back_populates="citizen", cascade="all, delete-orphan")
@@ -106,8 +104,8 @@ class Family(Base):
     __tablename__ = 'Family'
     
     Family_id = Column(Integer, primary_key=True, autoincrement=True)
-    Head_citizen_id = Column(Integer, ForeignKey('Citizen.Citizen_id'), nullable=False)  # Changed from User_name
-    Member_citizen_id = Column(Integer, ForeignKey('Citizen.Citizen_id'), nullable=False)  # Changed from User_name
+    Head_citizen_id = Column(Integer, ForeignKey('Citizen.Citizen_id'), nullable=False)  
+    Member_citizen_id = Column(Integer, ForeignKey('Citizen.Citizen_id'), nullable=False)  
     Relationship = Column(String(30), nullable=False)
     
     family_head = relationship('Citizen', foreign_keys=[Head_citizen_id], back_populates='headed_families')
@@ -123,7 +121,7 @@ class Issue(Base):
     created_at = Column(DateTime, default=datetime.datetime.utcnow)
     updated_at = Column(DateTime, default=datetime.datetime.utcnow, onupdate=datetime.datetime.utcnow)
     
-    citizen = relationship('Citizen', back_populates='issues')  # Changed from user
+    citizen = relationship('Citizen', back_populates='issues')  
 
 class Document(Base):
     __tablename__ = "Document"
@@ -183,4 +181,3 @@ class Infrastructure(Base):
     Location = Column(Text)
     Funding = Column(Float, nullable=False)
     Actual_cost = Column(Float, nullable=False, default=0)
-    # Infrastructure remains unlinked to individual citizens as it's a public resource

@@ -240,7 +240,7 @@ def get_citizen_issues(
         if 'Citizen_id' in columns:
             # New schema
             issues_query = text("""
-                SELECT Issue_id, description, status 
+                SELECT Issue_id, description, status, created_at, updated_at
                 FROM Issue 
                 WHERE Citizen_id = :citizen_id
             """)
@@ -248,7 +248,7 @@ def get_citizen_issues(
         elif 'User_name' in columns:
             # Old schema
             issues_query = text("""
-                SELECT Issue_id, description, status 
+                SELECT Issue_id, description, status, created_at, updated_at
                 FROM Issue 
                 WHERE User_name = :username
             """)
@@ -270,7 +270,9 @@ def get_citizen_issues(
             issue_data = {
                 "Issue_id": issue.Issue_id,
                 "description": issue.description,
-                "status": issue.status
+                "status": issue.status, 
+                "created_at": issue.created_at,
+                "updated_at": issue.updated_at,
             }
             issue_data_list.append(schemas.IssueData(**issue_data))
         
@@ -304,6 +306,7 @@ def create_citizen_issue(
         logger.info(f"Issue table columns: {columns}")
         
         if 'Citizen_id' in columns:
+            # New schema
             insert_query = text("""
                 INSERT INTO Issue (Citizen_id, description, status, created_at, updated_at)
                 VALUES (:citizen_id, :description, :status, CURRENT_TIMESTAMP, CURRENT_TIMESTAMP)

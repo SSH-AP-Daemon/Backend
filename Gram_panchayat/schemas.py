@@ -246,6 +246,7 @@ class WelfareEnrolResponse(BaseModel):
         from_attributes = True
 
 class InfrastructureData(BaseModel):
+    Infra_id: int
     Description: Optional[str] = None
     Location: Optional[str] = None
     Funding: float
@@ -256,6 +257,23 @@ class InfrastructureData(BaseModel):
 
 class InfrastructureResponse(BaseModel):
     data: List[InfrastructureData]
+    message: str
+    statusCode: int
+    
+    class Config:
+        from_attributes = True
+
+class InfrastructureCreate(BaseModel):
+    Description: Optional[str] = None
+    Location: Optional[str] = None
+    Funding: float
+    Actual_cost: float = 0
+    
+    class Config:
+        from_attributes = True
+
+class InfrastructureCreateResponse(BaseModel):
+    Infra_id: int
     message: str
     statusCode: int
     

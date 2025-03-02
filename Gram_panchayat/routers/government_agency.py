@@ -5,6 +5,8 @@ from typing import Optional
 from .. import models, schemas, jwt_handler
 from ..database import get_db
 import logging
+from sqlalchemy.exc import SQLAlchemyError
+from sqlalchemy import desc
 
 logging.basicConfig(
     level=logging.INFO,
@@ -303,4 +305,185 @@ def delete_welfare_scheme(
             detail=f"Error deleting welfare scheme: {str(e)}"
         )
         
+
+@router.get('/infrastructure', response_model=schemas.InfrastructureResponse)
+def get_agency_infrastructure(
+    db: Session = Depends(get_db),
+    current_user: models.User = Depends(get_current_user)
+):
+    logger.info(f"get_agency_infrastructure called for user: {current_user.User_name}")
+    
+    is_government_agency(current_user)
+    
+    try:
+        # Get the government agency
+        agency = db.query(models.GovernmentAgencies).filter(
+            models.GovernmentAgencies.User_name == current_user.User_name
+        ).first()
         
+        if not agency:
+            logger.error(f"No government agency record found for user: {current_user.User_name}")
+            raise HTTPException(
+                status_code=status.HTTP_404_NOT_FOUND,
+                detail="Government agency record not found"
+            )
+        
+        # Get infrastructure projects
+        infrastructure = db.query(models.Infrastructure).filter(
+            models.Infrastructure.Agency_id == agency.Agency_id
+        ).order_by(desc(models.Infrastructure.Infra_id)).all()
+        
+        logger.info(f"Found {len(infrastructure)} infrastructure projects for agency: {current_user.User_name}")
+        
+        infra_data = [
+            schemas.InfrastructureData(
+                Infra_id=infra.Infra_id,
+                Description=infra.Description,
+                Location=infra.Location,
+                Funding=infra.Funding,
+                Actual_cost=infra.Actual_cost
+            )
+            for infra in infrastructure
+        ]
+        
+        return schemas.InfrastructureResponse(
+            data=infra_data,
+            message="Infrastructure projects retrieved successfully",
+            statusCode=status.HTTP_200_OK
+        )
+        
+    except SQLAlchemyError as e:
+        logger.error(f"Database error in get_agency_infrastructure: {str(e)}")
+        raise HTTPException(
+            status_code=status.HTTP_500_INTERNAL_SERVER_ERROR,
+            detail=f"Database error: {str(e)}"
+        )
+    except Exception as e:
+        logger.error(f"Error in get_agency_infrastructure: {str(e)}")
+        raise HTTPException(
+            status_code=status.HTTP_500_INTERNAL_SERVER_ERROR,
+            detail=f"Error retrieving infrastructure projects: {str(e)}"
+        )
+
+@router.post('/infrastructure', response_model=schemas.InfrastructureCreateResponse)
+def create_infrastructure(
+    infra_data: schemas.InfrastructureCreate,
+    db: Session = Depends(get_db),
+    current_user: models.User = Depends(get_current_user)
+):
+    logger.info(f"create_infrastructure called for user: {current_user.User_name}")
+    
+    is_government_agency(current_user)
+    
+    try:
+        # Get the government agency
+        agency = db.query(models.GovernmentAgencies).filter(
+            models.GovernmentAgencies.User_name == current_user.User_name
+        ).first()
+        
+        if not agency:
+            logger.error(f"No government agency record found for user: {current_user.User_name}")
+            raise HTTPException(
+                status_code=status.HTTP_404_NOT_FOUND,
+                detail="Government agency record not found"
+            )
+        
+        # Create new infrastructure
+        new_infrastructure = models.Infrastructure(
+            Agency_id=agency.Agency_id,
+            Description=infra_data.Description,
+            Location=infra_data.Location,
+            Funding=infra_data.Funding,
+            Actual_cost=infra_data.Actual_cost
+        )
+        
+        db.add(new_infrastructure)
+        db.flush()  # Get the ID before committing
+        
+        infra_id = new_infrastructure.Infra_id
+        db.commit()
+        
+        logger.info(f"Created infrastructure project with ID: {infra_id}")
+        
+        return schemas.InfrastructureCreateResponse(
+            Infra_id=infra_id,
+            message="Infrastructure project created successfully",
+            statusCode=status.HTTP_201_CREATED
+        )
+        
+    except SQLAlchemyError as e:
+        logger.error(f"Database error in create_infrastructure: {str(e)}")
+        db.rollback()
+        raise HTTPException(
+            status_code=status.HTTP_500_INTERNAL_SERVER_ERROR,
+            detail=f"Database error: {str(e)}"
+        )
+    except Exception as e:
+        logger.error(f"Error in create_infrastructure: {str(e)}")
+        db.rollback()
+        raise HTTPException(
+            status_code=status.HTTP_500_INTERNAL_SERVER_ERROR,
+            detail=f"Error creating infrastructure project: {str(e)}"
+        )
+
+@router.delete('/infrastructure/{infra_id}', response_model=schemas.ResponseModel)
+def delete_infrastructure(
+    infra_id: int,
+    db: Session = Depends(get_db),
+    current_user: models.User = Depends(get_current_user)
+):
+    logger.info(f"delete_infrastructure called for ID: {infra_id} by user: {current_user.User_name}")
+    
+    is_government_agency(current_user)
+    
+    try:
+        # Get the government agency
+        agency = db.query(models.GovernmentAgencies).filter(
+            models.GovernmentAgencies.User_name == current_user.User_name
+        ).first()
+        
+        if not agency:
+            logger.error(f"No government agency record found for user: {current_user.User_name}")
+            raise HTTPException(
+                status_code=status.HTTP_404_NOT_FOUND,
+                detail="Government agency record not found"
+            )
+        
+        # Get and verify infrastructure project
+        infrastructure = db.query(models.Infrastructure).filter(
+            models.Infrastructure.Infra_id == infra_id,
+            models.Infrastructure.Agency_id == agency.Agency_id
+        ).first()
+        
+        if not infrastructure:
+            logger.error(f"Infrastructure {infra_id} not found or does not belong to agency: {current_user.User_name}")
+            raise HTTPException(
+                status_code=status.HTTP_404_NOT_FOUND,
+                detail="Infrastructure project not found or you don't have permission to delete it"
+            )
+        
+        # Delete the infrastructure
+        db.delete(infrastructure)
+        db.commit()
+        
+        logger.info(f"Successfully deleted infrastructure {infra_id}")
+        
+        return schemas.ResponseModel(
+            message="Infrastructure project deleted successfully",
+            statusCode=status.HTTP_200_OK
+        )
+        
+    except SQLAlchemyError as e:
+        logger.error(f"Database error in delete_infrastructure: {str(e)}")
+        db.rollback()
+        raise HTTPException(
+            status_code=status.HTTP_500_INTERNAL_SERVER_ERROR,
+            detail=f"Database error: {str(e)}"
+        )
+    except Exception as e:
+        logger.error(f"Error in delete_infrastructure: {str(e)}")
+        db.rollback()
+        raise HTTPException(
+            status_code=status.HTTP_500_INTERNAL_SERVER_ERROR,
+            detail=f"Error deleting infrastructure project: {str(e)}"
+        )

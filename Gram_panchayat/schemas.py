@@ -215,8 +215,9 @@ class ResponseModel(BaseModel):
     statusCode: int
     
 class DocumentData(BaseModel):
+    Document_id: int
     Type: str
-    Pdf_data: bytes
+    Pdf_data: bytes  # or str if you're encoding to base64
     
     class Config:
         from_attributes = True

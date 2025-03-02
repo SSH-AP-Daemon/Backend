@@ -935,7 +935,7 @@ async def delete_document(
 
 ############################################################################################
 
-@router.post("/financial_data", response_model=FinancialCreateResponse)
+@router.post("/financial-data", response_model=FinancialCreateResponse)
 async def create_financial_data(
     request: FinancialDataRequest,
     current_user: User = Depends(get_current_user),
@@ -1014,7 +1014,7 @@ async def create_financial_data(
         )
         
 
-@router.get("/financial_data", response_model=FinancialDataGetResponse)
+@router.get("/financial-data", response_model=FinancialDataGetResponse)
 async def get_financial_data(
     user_name: str,
     year: Optional[int] = None,
@@ -1091,7 +1091,7 @@ async def get_financial_data(
         )
 
 
-@router.delete("/financial_data", response_model=BasicResponse)
+@router.delete("/financial-data", response_model=BasicResponse)
 async def delete_financial_data(
     Financial_id: int,
     current_user: User = Depends(get_current_user),

@@ -942,7 +942,7 @@ async def create_financial_data(
     db: Session = Depends(get_db)
 ):
     # Get current UTC timestamp
-    current_time = datetime.utcnow()
+    # current_time = datetime.utcnow()
     
     # Verify if the current user has permission
     if (current_user.User_name != request.user_name and 
@@ -984,7 +984,7 @@ async def create_financial_data(
             Tax_liability=request.Tax_liability,
             Debt_liability=request.Debt_liability,
             Credit_score=request.Credit_score,
-            Last_updated=current_time
+            # Last_updated=current_time
         )
 
         db.add(new_financial_data)
@@ -1012,3 +1012,4 @@ async def create_financial_data(
             status_code=status.HTTP_500_INTERNAL_SERVER_ERROR,
             detail=f"An error occurred while adding financial data: {str(e)}"
         )
+        

@@ -7,6 +7,8 @@ from .. import jwt_handler, models, schemas
 from pydantic import BaseModel
 import logging
 from datetime import date, datetime
+from sqlalchemy.exc import SQLAlchemyError
+from pydantic.error_wrappers import ValidationError
 
 # Configure logging
 logging.basicConfig(
@@ -97,7 +99,62 @@ def check_column_exists(table_name, column_name, db: Session):
     inspector = inspect(db.bind)
     columns = [col['name'] for col in inspector.get_columns(table_name)]
     return column_name in columns
-
+@router.get('/profile')  # Remove response_model since we're using a simple dict
+def get_citizen_profile(
+    db: Session = Depends(get_db),
+    current_user: models.User = Depends(get_current_user)
+):
+    logger.info(f"get_citizen_profile called by user: {current_user.User_name}")
+    
+    is_citizen(current_user)
+    
+    try:
+        query = text("""
+            SELECT 
+                Date_of_birth,
+                Date_of_death,
+                Gender,
+                Address,
+                Educational_qualification,
+                Occupation
+            FROM Citizen
+            WHERE User_name = :username
+        """)
+        
+        result = db.execute(query, {"username": current_user.User_name}).first()
+        
+        logger.info(f"Query result: {result}")
+        
+        if not result:
+            raise HTTPException(
+                status_code=status.HTTP_404_NOT_FOUND,
+                detail="Citizen profile not found"
+            )
+        
+        response = {
+            "data": {
+                "Date_of_birth": str(result[0]),
+                "Date_of_death": str(result[1]) if result[1] else None,
+                "Gender": str(result[2]),
+                "Address": str(result[3]),
+                "Educational_qualification": str(result[4]),
+                "Occupation": str(result[5])
+            },
+            "message": "Citizen profile retrieved successfully",
+            "statusCode": status.HTTP_200_OK
+        }
+        
+        logger.info(f"Response: {response}")
+        
+        return response
+        
+    except Exception as e:
+        logger.error(f"Error in get_citizen_profile: {str(e)}")
+        raise HTTPException(
+            status_code=status.HTTP_500_INTERNAL_SERVER_ERROR,
+            detail=str(e)
+        )
+        
 @router.get('/assets', response_model=schemas.AssetsResponse)
 def get_citizen_assets(
     db: Session = Depends(get_db),

@@ -55,6 +55,8 @@ class GovernmentAgencies(Base):
     
     user = relationship('User', back_populates='government_agencies')
     schemes = relationship('WelfareScheme', back_populates='agency', cascade="all, delete-orphan")
+    infrastructures = relationship('Infrastructure', back_populates='agency', cascade="all, delete-orphan")
+    
     
 class Admin(Base):
     __tablename__ = 'Admin'
@@ -103,9 +105,9 @@ class AgriculturalLand(Base):
 class Family(Base):
     __tablename__ = 'Family'
     
-    Family_id = Column(Integer, primary_key=True, autoincrement=True)
-    Head_citizen_id = Column(Integer, ForeignKey('Citizen.Citizen_id'), nullable=False)  
-    Member_citizen_id = Column(Integer, ForeignKey('Citizen.Citizen_id'), nullable=False)  
+    Head_citizen_id = Column(Integer, ForeignKey('Citizen.Citizen_id'), primary_key=True)  
+    Member_citizen_id = Column(Integer, ForeignKey('Citizen.Citizen_id'), primary_key=True)  
+    Family_id = Column(Integer)
     Relationship = Column(String(30), nullable=False)
     
     family_head = relationship('Citizen', foreign_keys=[Head_citizen_id], back_populates='headed_families')
@@ -182,3 +184,6 @@ class Infrastructure(Base):
     Location = Column(Text)
     Funding = Column(Float, nullable=False)
     Actual_cost = Column(Float, nullable=False, default=0)
+    Agency_id = Column(Integer, ForeignKey('Government_agencies.Agency_id'), nullable=False)
+    
+    agency = relationship("GovernmentAgencies", back_populates="infrastructures")

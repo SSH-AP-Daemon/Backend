@@ -328,7 +328,7 @@ def create_citizen_issue(
                 {
                     "citizen_id": citizen.Citizen_id,
                     "description": issue_data.description,
-                    "status": "PENDING"
+                    "status": "OPEN"
                 }
             )
         elif 'User_name' in columns:
@@ -343,7 +343,7 @@ def create_citizen_issue(
                 {
                     "username": current_user.User_name,
                     "description": issue_data.description,
-                    "status": "PENDING"
+                    "status": "OPEN"
                 }
             )
         else:
@@ -419,7 +419,7 @@ def delete_citizen_issue(
             )
         
         # Check if issue is in 'OPEN' status
-        if issue.status != 'PENDING':
+        if issue.status != 'OPEN':
             logger.error(f"Issue {Issue_id} is not in 'OPEN' status, current status: {issue.status}")
             raise HTTPException(
                 status_code=status.HTTP_403_FORBIDDEN,
@@ -726,8 +726,8 @@ def enrol_in_welfare_scheme(
             )
         
         insert_query = text("""
-            INSERT INTO Welfare_enrol (Citizen_id, Scheme_fk, status, created_at)
-            VALUES (:citizen_id, :scheme_id, :status, CURRENT_TIMESTAMP)
+            INSERT INTO Welfare_enrol (Citizen_id, Scheme_fk, status)
+            VALUES (:citizen_id, :scheme_id, :status)
             RETURNING Enrol_id, status
         """)
         

@@ -139,13 +139,3 @@ async def login_user(request:schemas.Login,db:Session = Depends(get_db)):
         
     else:
         raise HTTPException(status_code=status.HTTP_404_NOT_FOUND,detail=f"User not found")
-    
-
-
-
-
-
-    
-
-
-

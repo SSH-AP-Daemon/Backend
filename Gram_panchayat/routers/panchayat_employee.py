@@ -12,7 +12,7 @@ from collections import defaultdict
 from datetime import datetime
 from ..models import Issue, Citizen, User,Document,FinancialData
 from sqlalchemy import select
-from ..schemas import IssuesListResponse, IssueResponse,  UpdateIssueRequest, UpdateIssueResponse,FinancialCreateResponse,FinancialDataResponse,FinancialDataRequest
+from ..schemas import IssuesListResponse, IssueResponse,  UpdateIssueRequest, UpdateIssueResponse,FinancialCreateResponse,FinancialDataResponse,FinancialDataRequest,FinancialDataGetResponse,FinancialDataItem
 from ..schemas import DocumentsListResponse, DocumentResponse,DocumentUploadRequest,DocumentUploadResponse,DocumentCreatedResponse,DocumentDeleteResponse
 from base64 import b64encode, b64decode
 from fastapi import File, UploadFile, Form
@@ -1013,3 +1013,79 @@ async def create_financial_data(
             detail=f"An error occurred while adding financial data: {str(e)}"
         )
         
+
+@router.get("/financial_data", response_model=FinancialDataGetResponse)
+async def get_financial_data(
+    user_name: str,
+    year: Optional[int] = None,
+    current_user: User = Depends(get_current_user),
+    db: Session = Depends(get_db)
+):
+    # Verify if the current user has permission
+    if (current_user.User_name != user_name and 
+        current_user.User_type not in ['PANCHAYAT_EMPLOYEE']):
+        raise HTTPException(
+            status_code=status.HTTP_403_FORBIDDEN,
+            detail="You don't have permission to view financial data for this user"
+        )
+
+    try:
+        # Get the citizen ID for the user_name
+        citizen = db.query(Citizen).join(User).filter(User.User_name == user_name).first()
+        
+        if not citizen:
+            raise HTTPException(
+                status_code=status.HTTP_404_NOT_FOUND,
+                detail=f"No citizen found for user {user_name}"
+            )
+
+        # Query financial data
+        query = db.query(FinancialData).filter(
+            FinancialData.Citizen_id == citizen.Citizen_id
+        )
+        
+        # Filter by year if provided
+        if year is not None:
+            query = query.filter(FinancialData.year == year)
+        
+        financial_data = query.all()
+        
+        if not financial_data:
+            return FinancialDataGetResponse(
+                data=[],
+                message=f"No financial data found for the specified criteria",
+                statusCode=status.HTTP_404_NOT_FOUND
+            )
+        
+        # Format response data
+        data_items = []
+        for item in financial_data:
+            data_items.append(
+                FinancialDataItem(
+                    Financial_id=item.Financial_id,
+                    year=item.year,
+                    Annual_Income=item.Annual_Income,
+                    Income_source=item.Income_source,
+                    Tax_paid=item.Tax_paid,
+                    Tax_liability=item.Tax_liability,
+                    Debt_liability=item.Debt_liability,
+                    Credit_score=item.Credit_score,
+                    Last_updated=item.Last_updated,
+                    Citizen_fk=item.Citizen_id
+                )
+            )
+        
+        return FinancialDataGetResponse(
+            data=data_items,
+            message="Financial data retrieved successfully",
+            statusCode=status.HTTP_200_OK
+        )
+
+    except HTTPException:
+        raise
+
+    except Exception as e:
+        raise HTTPException(
+            status_code=status.HTTP_500_INTERNAL_SERVER_ERROR,
+            detail=f"An error occurred while retrieving financial data: {str(e)}"
+        )

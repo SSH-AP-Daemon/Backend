@@ -29,7 +29,7 @@ app.include_router(user.router)
 app.include_router(admin.router)
 app.include_router(citizen.router)
 app.include_router(panchayat_employee.router)
-# app.include_router(government_agency.router)
+app.include_router(government_agency.router)
 
 
 # Dependency

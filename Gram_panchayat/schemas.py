@@ -523,3 +523,26 @@ class FinancialCreateResponse(BaseModel):
     data: List[FinancialDataResponse]
     message: str
     statusCode: int
+
+class FinancialDataGetRequest(BaseModel):
+    user_name: str
+    year: Optional[int] = None
+
+# Response models
+class FinancialDataItem(BaseModel):
+    Financial_id: int
+    year: int
+    Annual_Income: float
+    Income_source: str
+    Tax_paid: float
+    Tax_liability: float
+    Debt_liability: float
+    Credit_score: Optional[int]
+    Last_updated: datetime
+    Citizen_fk: int
+
+class FinancialDataGetResponse(BaseModel):
+    data: List[FinancialDataItem] = []
+    message: str
+    statusCode: int
+    

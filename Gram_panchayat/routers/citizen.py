@@ -7,6 +7,8 @@ from .. import jwt_handler, models, schemas
 from pydantic import BaseModel
 import logging
 from datetime import date, datetime
+from sqlalchemy.exc import SQLAlchemyError
+from pydantic.error_wrappers import ValidationError
 
 # Configure logging
 logging.basicConfig(
@@ -97,8 +99,63 @@ def check_column_exists(table_name, column_name, db: Session):
     inspector = inspect(db.bind)
     columns = [col['name'] for col in inspector.get_columns(table_name)]
     return column_name in columns
-
-@router.get('/assets', response_model=schemas.AssetsResponse)
+@router.get('/profile')  
+def get_citizen_profile(
+    db: Session = Depends(get_db),
+    current_user: models.User = Depends(get_current_user)
+):
+    logger.info(f"get_citizen_profile called by user: {current_user.User_name}")
+    
+    is_citizen(current_user)
+    
+    try:
+        query = text("""
+            SELECT 
+                Date_of_birth,
+                Date_of_death,
+                Gender,
+                Address,
+                Educational_qualification,
+                Occupation
+            FROM Citizen
+            WHERE User_name = :username
+        """)
+        
+        result = db.execute(query, {"username": current_user.User_name}).first()
+        
+        logger.info(f"Query result: {result}")
+        
+        if not result:
+            raise HTTPException(
+                status_code=status.HTTP_404_NOT_FOUND,
+                detail="Citizen profile not found"
+            )
+        
+        response = {
+            "data": {
+                "Date_of_birth": str(result[0]),
+                "Date_of_death": str(result[1]) if result[1] else None,
+                "Gender": str(result[2]),
+                "Address": str(result[3]),
+                "Educational_qualification": str(result[4]),
+                "Occupation": str(result[5])
+            },
+            "message": "Citizen profile retrieved successfully",
+            "statusCode": status.HTTP_200_OK
+        }
+        
+        logger.info(f"Response: {response}")
+        
+        return response
+        
+    except Exception as e:
+        logger.error(f"Error in get_citizen_profile: {str(e)}")
+        raise HTTPException(
+            status_code=status.HTTP_500_INTERNAL_SERVER_ERROR,
+            detail=str(e)
+        )
+        
+@router.get('/assets')  # Remove response_model
 def get_citizen_assets(
     db: Session = Depends(get_db),
     current_user: models.User = Depends(get_current_user)
@@ -107,44 +164,55 @@ def get_citizen_assets(
     
     is_citizen(current_user)
     
-    assets = db.query(models.Asset).filter(models.Asset.User_name == current_user.User_name).all()
-    logger.info(f"Found {len(assets)} assets for user: {current_user.User_name}")
-    
-    asset_data_list = []
-    for asset in assets:
-        # Check if Valuation is float
-        try:
-            valuation = float(asset.Valuation)
-        except ValueError:
-            logger.error(f"Valuation for asset of type {asset.Type} is not a valid float: {asset.Valuation}")
-            raise HTTPException(
-                status_code=status.HTTP_400_BAD_REQUEST,
-                detail=f"Valuation for asset of type {asset.Type} must be a valid float."
-            )
+    try:
+        assets = db.query(models.Asset).filter(models.Asset.User_name == current_user.User_name).all()
+        logger.info(f"Found {len(assets)} assets for user: {current_user.User_name}")
         
-        asset_data = {
-            "type": asset.Type,
-            "valuation": valuation
+        asset_data_list = []
+        for asset in assets:
+            # Check if Valuation is float
+            try:
+                valuation = float(asset.Valuation)
+            except ValueError:
+                logger.error(f"Valuation for asset of type {asset.Type} is not a valid float: {asset.Valuation}")
+                raise HTTPException(
+                    status_code=status.HTTP_400_BAD_REQUEST,
+                    detail=f"Valuation for asset of type {asset.Type} must be a valid float."
+                )
+            
+            asset_data = {
+                "type": asset.Type,
+                "valuation": valuation
+            }
+            
+            # Add agricultural land details if applicable
+            if asset.Type.lower() == "agricultural_land" and asset.agricultural_land:
+                agri_land = asset.agricultural_land
+                asset_data.update({
+                    "Year": agri_land.Year,
+                    "Season": agri_land.Season,
+                    "Crop_type": agri_land.Crop_type,
+                    "Area_cultivated": agri_land.Area_cultivated,
+                    "Yield": agri_land.Yield
+                })
+                
+            asset_data_list.append(asset_data)
+        
+        # Return simple dictionary response
+        return {
+            "data": asset_data_list,
+            "message": "Assets retrieved successfully",
+            "statusCode": status.HTTP_200_OK
         }
         
-        if asset.Type.lower() == "agricultural_land" and asset.agricultural_land:
-            agri_land = asset.agricultural_land
-            asset_data.update({
-                "Year": agri_land.Year,
-                "Season": agri_land.Season,
-                "Crop_type": agri_land.Crop_type,
-                "Area_cultivated": agri_land.Area_cultivated,
-                "Yield": agri_land.Yield
-            })
-            
-        asset_data_list.append(schemas.AssetData(**asset_data))
-    
-    return schemas.AssetsResponse(
-        data=asset_data_list,
-        message="Assets retrieved successfully",
-        statusCode=status.HTTP_200_OK
-    )
-
+    except HTTPException:
+        raise
+    except Exception as e:
+        logger.error(f"Error in get_citizen_assets: {str(e)}")
+        raise HTTPException(
+            status_code=status.HTTP_500_INTERNAL_SERVER_ERROR,
+            detail=f"Error retrieving assets: {str(e)}"
+        )
 
 @router.get('/family', response_model=schemas.FamilyResponse)
 def get_citizen_family(
@@ -445,8 +513,7 @@ def delete_citizen_issue(
             status_code=status.HTTP_500_INTERNAL_SERVER_ERROR,
             detail=f"Error deleting issue: {str(e)}"
         )
-
-@router.get('/document', response_model=schemas.DocumentResponse)
+@router.get('/document')  
 def get_citizen_documents(
     db: Session = Depends(get_db),
     current_user: models.User = Depends(get_current_user)
@@ -464,15 +531,14 @@ def get_citizen_documents(
         if 'Citizen_id' in columns:
             # New schema
             documents_query = text("""
-                SELECT Document_id, Type, Pdf_data 
+                SELECT Type, Pdf_data 
                 FROM Document 
                 WHERE Citizen_id = :citizen_id
             """)
             result = db.execute(documents_query, {"citizen_id": citizen.Citizen_id})
         elif 'User_name' in columns:
-            # Old schema
             documents_query = text("""
-                SELECT Document_id, Type, Pdf_data 
+                SELECT Type, Pdf_data 
                 FROM Document 
                 WHERE User_name = :username
             """)
@@ -484,32 +550,30 @@ def get_citizen_documents(
                 detail="Database schema error"
             )
         
-        # Process results
         documents = result.all()
         logger.info(f"Found {len(documents)} documents for user: {current_user.User_name}")
         
-        # Format the response
         document_data_list = []
-        for document in documents:
-            document_data = {
-                "Type": document.Type,
-                "Pdf_data": document.Pdf_data
+        for doc in documents:
+            doc_dict = {
+                "Type": doc[0],
+                "Pdf_data": doc[1]
             }
-            document_data_list.append(schemas.DocumentData(**document_data))
+            document_data_list.append(doc_dict)
         
-        return schemas.DocumentResponse(
-            data=document_data_list,
-            message="Documents retrieved successfully",
-            statusCode=status.HTTP_200_OK
-        )
+        return {
+            "data": document_data_list,
+            "message": "Documents retrieved successfully",
+            "statusCode": status.HTTP_200_OK
+        }
+        
     except Exception as e:
         logger.error(f"Error in get_citizen_documents: {str(e)}")
         raise HTTPException(
             status_code=status.HTTP_500_INTERNAL_SERVER_ERROR,
             detail=f"Error retrieving documents: {str(e)}"
         )
-
-@router.get('/financial-data', response_model=schemas.FinancialDataResponse)
+@router.get('/financial-data')  # Remove response_model
 def get_citizen_financial_data(
     db: Session = Depends(get_db),
     current_user: models.User = Depends(get_current_user)
@@ -549,30 +613,31 @@ def get_citizen_financial_data(
                 detail="Database schema error"
             )
         
-        # Process results
         financial_data = result.all()
         logger.info(f"Found {len(financial_data)} financial records for user: {current_user.User_name}")
         
-        # Format the response
         financial_data_list = []
         for data in financial_data:
             financial_record = {
-                "year": data.year,
-                "Annual_Income": data.Annual_Income,
-                "Income_source": data.Income_source,
-                "Tax_paid": data.Tax_paid,
-                "Tax_liability": data.Tax_liability,
-                "Debt_liability": data.Debt_liability,
-                "Credit_score": data.Credit_score,
-                "Last_updated": data.Last_updated
+                "year": str(data.year),  # Convert to string to ensure JSON serialization
+                "Annual_Income": float(data.Annual_Income) if data.Annual_Income else None,
+                "Income_source": str(data.Income_source) if data.Income_source else None,
+                "Tax_paid": float(data.Tax_paid) if data.Tax_paid else None,
+                "Tax_liability": float(data.Tax_liability) if data.Tax_liability else None,
+                "Debt_liability": float(data.Debt_liability) if data.Debt_liability else None,
+                "Credit_score": int(data.Credit_score) if data.Credit_score else None,
+                "Last_updated": str(data.Last_updated) if data.Last_updated else None
             }
-            financial_data_list.append(schemas.FinancialRecordData(**financial_record))
+            financial_data_list.append(financial_record)
         
-        return schemas.FinancialDataResponse(
-            data=financial_data_list,
-            message="Financial data retrieved successfully",
-            statusCode=status.HTTP_200_OK
-        )
+        return {
+            "data": financial_data_list,
+            "message": "Financial data retrieved successfully",
+            "statusCode": status.HTTP_200_OK
+        }
+        
+    except HTTPException:
+        raise
     except Exception as e:
         logger.error(f"Error in get_citizen_financial_data: {str(e)}")
         raise HTTPException(
@@ -653,7 +718,7 @@ def get_citizen_welfare_schemes(
         )
         
 
-@router.post('/welfare-enrol', response_model=schemas.WelfareEnrolResponse)
+@router.post('/welfare-enrol/{Scheme_id}', response_model=schemas.WelfareEnrolResponse)
 def enrol_in_welfare_scheme(
     Scheme_id: int,
     db: Session = Depends(get_db),

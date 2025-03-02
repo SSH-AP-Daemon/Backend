@@ -1,9 +1,10 @@
-from pydantic import BaseModel, Field
+from pydantic import BaseModel, Field, validator
 from typing import Optional, Literal, Union, Annotated, List
 from datetime import date, datetime
 from pydantic import validator
 
-# Base Models
+
+
 class BaseUser(BaseModel):
     User_name: str
     Password: str
@@ -14,6 +15,27 @@ class BaseUser(BaseModel):
 
     class Config:
         from_attributes = True
+        
+
+
+class CitizenProfileData(BaseModel):
+    Date_of_birth: str
+    Date_of_death: str | None = None
+    Gender: str
+    Address: str
+    Educational_qualification: str
+    Occupation: str
+    
+    class Config:
+        from_attributes = True
+
+class CitizenProfileResponse(BaseModel):
+    data: dict
+    message: str
+    statusCode: int
+    class Config:
+        from_attributes = True
+
 
 # User Type Models
 class Citizen(BaseUser):
@@ -193,8 +215,9 @@ class ResponseModel(BaseModel):
     statusCode: int
     
 class DocumentData(BaseModel):
+    Document_id: int
     Type: str
-    Pdf_data: bytes
+    Pdf_data: bytes  # or str if you're encoding to base64
     
     class Config:
         from_attributes = True

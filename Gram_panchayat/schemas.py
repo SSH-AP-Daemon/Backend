@@ -256,7 +256,6 @@ class WelfareEnrolResponse(BaseModel):
         from_attributes = True
 
 class InfrastructureData(BaseModel):
-    Infra_id: int
     Description: Optional[str] = None
     Location: Optional[str] = None
     Funding: float

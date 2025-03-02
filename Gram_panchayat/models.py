@@ -185,5 +185,4 @@ class Infrastructure(Base):
     Funding = Column(Float, nullable=False)
     Actual_cost = Column(Float, nullable=False, default=0)
     Agency_id = Column(Integer, ForeignKey('Government_agencies.Agency_id'), nullable=False)
-    
     agency = relationship("GovernmentAgencies", back_populates="infrastructures")

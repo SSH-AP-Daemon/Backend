@@ -4,6 +4,9 @@ from ..database import get_db
 from .. import models
 from fastapi_mail import FastMail, MessageSchema, ConnectionConfig
 from pydantic import EmailStr
+from sqlalchemy import text
+import logging
+logger = logging.getLogger(__name__)
 
 router = APIRouter(
     prefix="/admin",

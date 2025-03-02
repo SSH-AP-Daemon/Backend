@@ -24,6 +24,8 @@ class User(Base):
     
     assets = relationship('Asset', back_populates='user', cascade="all, delete-orphan")
 
+
+
 class Citizen(Base):
     __tablename__ = 'Citizen'
     

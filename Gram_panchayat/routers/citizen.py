@@ -99,7 +99,7 @@ def check_column_exists(table_name, column_name, db: Session):
     inspector = inspect(db.bind)
     columns = [col['name'] for col in inspector.get_columns(table_name)]
     return column_name in columns
-@router.get('/profile')  # Remove response_model since we're using a simple dict
+@router.get('/profile')  
 def get_citizen_profile(
     db: Session = Depends(get_db),
     current_user: models.User = Depends(get_current_user)
@@ -169,9 +169,19 @@ def get_citizen_assets(
     
     asset_data_list = []
     for asset in assets:
+        # Check if Valuation is float
+        try:
+            valuation = float(asset.Valuation)
+        except ValueError:
+            logger.error(f"Valuation for asset of type {asset.Type} is not a valid float: {asset.Valuation}")
+            raise HTTPException(
+                status_code=status.HTTP_400_BAD_REQUEST,
+                detail=f"Valuation for asset of type {asset.Type} must be a valid float."
+            )
+        
         asset_data = {
             "type": asset.Type,
-            "valuation": asset.Valuation
+            "valuation": valuation
         }
         
         if asset.Type.lower() == "agricultural_land" and asset.agricultural_land:
@@ -191,6 +201,7 @@ def get_citizen_assets(
         message="Assets retrieved successfully",
         statusCode=status.HTTP_200_OK
     )
+
 
 @router.get('/family', response_model=schemas.FamilyResponse)
 def get_citizen_family(

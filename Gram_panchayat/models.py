@@ -186,3 +186,16 @@ class Infrastructure(Base):
     Actual_cost = Column(Float, nullable=False, default=0)
     Agency_id = Column(Integer, ForeignKey('Government_agencies.Agency_id'), nullable=False)
     agency = relationship("GovernmentAgencies", back_populates="infrastructures")
+    
+class EnvironmentalData(Base):
+    __tablename__ = "Environmental_data"
+    
+    Year = Column(Integer, primary_key=True)
+    Aqi = Column(Float)
+    Forest_cover = Column(Float)
+    Odf = Column(Float)
+    Afforestation_data = Column(Float)
+    Precipitation = Column(Float)
+    Water_quality = Column(Float)
+    
+

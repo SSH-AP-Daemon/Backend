@@ -92,7 +92,7 @@ class AgriculturalLandBase(BaseModel):
 
 class AssetBase(BaseModel):
     Type: str
-    Valuation: str
+    Valuation: int
     
 class AssetCreate(AssetBase):
     User_name: str

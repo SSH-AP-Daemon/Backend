@@ -502,8 +502,7 @@ def delete_citizen_issue(
             status_code=status.HTTP_500_INTERNAL_SERVER_ERROR,
             detail=f"Error deleting issue: {str(e)}"
         )
-
-@router.get('/document', response_model=schemas.DocumentResponse)
+@router.get('/document')  
 def get_citizen_documents(
     db: Session = Depends(get_db),
     current_user: models.User = Depends(get_current_user)
@@ -521,15 +520,14 @@ def get_citizen_documents(
         if 'Citizen_id' in columns:
             # New schema
             documents_query = text("""
-                SELECT Document_id, Type, Pdf_data 
+                SELECT Type, Pdf_data 
                 FROM Document 
                 WHERE Citizen_id = :citizen_id
             """)
             result = db.execute(documents_query, {"citizen_id": citizen.Citizen_id})
         elif 'User_name' in columns:
-            # Old schema
             documents_query = text("""
-                SELECT Document_id, Type, Pdf_data 
+                SELECT Type, Pdf_data 
                 FROM Document 
                 WHERE User_name = :username
             """)
@@ -541,31 +539,29 @@ def get_citizen_documents(
                 detail="Database schema error"
             )
         
-        # Process results
         documents = result.all()
         logger.info(f"Found {len(documents)} documents for user: {current_user.User_name}")
         
-        # Format the response
         document_data_list = []
-        for document in documents:
-            document_data = {
-                "Type": document.Type,
-                "Pdf_data": document.Pdf_data
+        for doc in documents:
+            doc_dict = {
+                "Type": doc[0],
+                "Pdf_data": doc[1]
             }
-            document_data_list.append(schemas.DocumentData(**document_data))
+            document_data_list.append(doc_dict)
         
-        return schemas.DocumentResponse(
-            data=document_data_list,
-            message="Documents retrieved successfully",
-            statusCode=status.HTTP_200_OK
-        )
+        return {
+            "data": document_data_list,
+            "message": "Documents retrieved successfully",
+            "statusCode": status.HTTP_200_OK
+        }
+        
     except Exception as e:
         logger.error(f"Error in get_citizen_documents: {str(e)}")
         raise HTTPException(
             status_code=status.HTTP_500_INTERNAL_SERVER_ERROR,
             detail=f"Error retrieving documents: {str(e)}"
         )
-
 @router.get('/financial-data', response_model=schemas.FinancialDataResponse)
 def get_citizen_financial_data(
     db: Session = Depends(get_db),

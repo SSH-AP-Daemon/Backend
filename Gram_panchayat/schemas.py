@@ -4,6 +4,7 @@
 from pydantic import BaseModel, Field
 from typing import Optional, Literal, Union, Annotated, List
 from datetime import date, datetime
+from pydantic import validator
 
 # Base Models
 class BaseUser(BaseModel):
@@ -74,6 +75,17 @@ class AssetBase(BaseModel):
     Type: str
     Valuation: str
     
+class AssetCreate(AssetBase):
+    User_name: str
+
+
+class AssetResponse(AssetBase):
+    Asset_id: int
+    User_name: str
+
+    class Config:
+        orm_mode = True
+    
     class Config:
         from_attributes = True
 
@@ -122,6 +134,7 @@ class FamilyResponse(BaseModel):
     data: List[FamilyMemberData]
     message: str
     statusCode: int
+    
 
 # Issue Models
 class IssueBase(BaseModel):
@@ -313,3 +326,184 @@ class UserLoginResponse(BaseModel):
 class UserLogin(BaseModel):
     username: str
     password: str
+    
+# this part is for family schems panchayat employee##########################################################################
+# Update the schemas with the corrected response format
+
+class FamMemberResp(BaseModel):
+    member_citizen_id: int
+    member_user_name: str
+
+    class Config:
+        orm_mode = True
+
+
+# This is for the GET response which will include all members
+class FamRespWithMembers(BaseModel):
+    family_id: int
+    head_citizen_id: int
+    members: List[FamMemberResp]
+
+    class Config:
+        orm_mode = True
+
+
+# This is for the POST response which just has family_id and head_citizen_id
+class FamCreateResp(BaseModel):
+    family_id: int
+    head_citizen_id: int
+
+    class Config:
+        orm_mode = True
+
+
+class FamReq(BaseModel):
+    user_name: str  # username of the head
+
+
+# Response model for GET (with members)
+class FamRespModel(BaseModel):
+    data: List[FamRespWithMembers]
+    message: str
+    statusCode: int
+
+    class Config:
+        orm_mode = True
+
+
+# Response model for POST (simplified)
+class FamCreateRespModel(BaseModel):
+    data: FamCreateResp
+    message: str
+    statusCode: int
+
+    class Config:
+        orm_mode = True
+        
+# Add these schemas to your existing schemas.py file
+
+class FamMemberReq(BaseModel):
+    family_id: int
+    member_user_name: str
+
+
+class FamMemberData(BaseModel):
+    member_citizen_id: int
+    member_user_name: str
+
+    class Config:
+        from_attributes = True  # Using from_attributes instead of orm_mode for Pydantic v2
+
+
+class FamMemberRespModel(BaseModel):
+    data: FamMemberData
+    message: str
+    statusCode: int
+
+    class Config:
+        from_attributes = True  # Using from_attributes instead of orm_mode for Pydantic v2
+        ###############################################
+        
+        
+
+
+# this part is for schemas for issues panchayat employee###################################################
+from typing import List, Optional
+from pydantic import BaseModel
+from datetime import datetime
+
+class IssueResponse(BaseModel):
+    issue_id: int
+    description: str
+    status: str
+    citizen_id: int
+    user_name: str
+    created_at: datetime
+    updated_at: datetime
+
+    class Config:
+        from_attributes = True
+
+class IssuesListResponse(BaseModel):
+    data: List[IssueResponse]
+    message: str
+    statusCode: int
+
+    class Config:
+        from_attributes = True
+        
+class UpdateIssueRequest(BaseModel):
+    issue_id: int
+    status: str
+
+    # Validate that status is one of the allowed values
+    @validator('status')
+    def validate_status(cls, v):
+        allowed_statuses = ['PENDING', 'IN_PROGRESS', 'RESOLVED', 'REJECTED']
+        if v not in allowed_statuses:
+            raise ValueError(f'Status must be one of {allowed_statuses}')
+        return v
+
+class UpdateIssueResponse(BaseModel):
+    message: str
+    statusCode: int
+    
+    
+# this part is for schemas for documents panchayat employee###################################################
+class DocumentResponse(BaseModel):
+    Doc_id: int
+    Type: str
+    Pdf_data: str  # Will contain base64 encoded PDF data
+    Citizen_id: int
+    user_name: str
+
+    class Config:
+        from_attributes = True
+
+class DocumentsListResponse(BaseModel):
+    data: List[DocumentResponse]
+    message: str
+    statusCode: int
+
+class GetDocumentRequest(BaseModel):
+    user_name: str
+    
+class DocumentUploadRequest(BaseModel):
+    Type: str
+    pdf_data: str
+    user_name: str
+
+class DocumentCreatedResponse(BaseModel):
+    Doc_id: int
+    Citizen_id: int
+
+class DocumentUploadResponse(BaseModel):
+    data: List[DocumentCreatedResponse]
+    message: str
+    statusCode: int
+    
+class DocumentDeleteResponse(BaseModel):
+    message: str
+    statusCode: int
+    
+    
+# this part is for schemas for financial records panchayat employee###################################################
+class FinancialDataRequest(BaseModel):
+    year: int
+    Annual_Income: float
+    Income_source: str
+    Tax_paid: float
+    Tax_liability: float
+    Debt_liability: float
+    Credit_score: Optional[int] = None
+    user_name: str
+
+class FinancialDataResponse(BaseModel):
+    Financial_id: int
+    Last_updated: datetime
+    Citizen_fk: int
+
+class FinancialCreateResponse(BaseModel):
+    data: List[FinancialDataResponse]
+    message: str
+    statusCode: int

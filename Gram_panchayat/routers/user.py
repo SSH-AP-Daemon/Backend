@@ -84,16 +84,61 @@ async def login_user(request:schemas.Login,db:Session = Depends(get_db)):
         data={"sub": user.User_name}
     )
     
-    return {
-        "JWT": access_token,
-        "token_type": "bearer",
-        "Name": user.Name,
-        "User_name": user.User_name,
-        "User_type": user.User_type,
-        "Email": user.Email,
-        "Contact_number": user.Contact_number
+    if user.User_type == "CITIZEN":
+        citizen = db.query(models.Citizen).filter(models.Citizen.User_name == user.User_name).first()
+        return {"access_token": access_token, "token_type": "bearer",
+                "username": user.User_name, 
+                "name": user.Name,
+                "email": user.Email,
+                "contact_number": user.Contact_number,
+                "user_type": user.User_type,
+                "Date_of_birth": citizen.Date_of_birth,
+                "Date_of_death": citizen.Date_of_death,
+                "Gender": citizen.Gender,
+                "Address": citizen.Address,
+                "Educational_qualification": citizen.Educational_qualification,
+                "Occupation": citizen.Occupation
+                }
+    elif user.User_type == "ADMIN":
+        admin = db.query(models.Admin).filter(models.Admin.User_name == user.User_name).first()
+        return{
+            "access_token": access_token, "token_type": "bearer",
+            "username": user.User_name, 
+            "name": user.Name,
+            "email": user.Email,
+            "contact_number": user.Contact_number,
+            "user_type": user.User_type,
+            "Gender": admin.Gender,
+            "Date_of_birth": admin.Date_of_birth,
+            "Address": admin.Address
+        }
+    elif user.User_type == "GOVERNMENT_AGENCY":
+        governmentagency = db.query(models.GovernmentAgencies).filter(models.GovernmentAgencies.User_name == user.User_name).first()
+        return{
+            "access_token": access_token, "token_type": "bearer",
+            "username": user.User_name, 
+            "name": user.Name,
+            "email": user.Email,
+            "contact_number": user.Contact_number,
+            "user_type": user.User_type,
+            "Role": governmentagency.Role
+        }
+    elif user.User_type == "PANCHAYAT_EMPLOYEE":
+        panchayatemployee = db.query(models.PanchayatEmployee).filter(models.PanchayatEmployee.User_name == user.User_name).first()
+        return{
+            "access_token": access_token, "token_type": "bearer",
+            "username": user.User_name, 
+            "name": user.Name,
+            "email": user.Email,
+            "contact_number": user.Contact_number,
+            "user_type": user.User_type,
+            "Role": panchayatemployee.Role
+        }
         
-    }
+        
+        
+    else:
+        raise HTTPException(status_code=status.HTTP_404_NOT_FOUND,detail=f"User not found")
     
 
 

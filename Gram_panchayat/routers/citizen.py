@@ -112,9 +112,19 @@ def get_citizen_assets(
     
     asset_data_list = []
     for asset in assets:
+        # Check if Valuation is float
+        try:
+            valuation = float(asset.Valuation)
+        except ValueError:
+            logger.error(f"Valuation for asset of type {asset.Type} is not a valid float: {asset.Valuation}")
+            raise HTTPException(
+                status_code=status.HTTP_400_BAD_REQUEST,
+                detail=f"Valuation for asset of type {asset.Type} must be a valid float."
+            )
+        
         asset_data = {
             "type": asset.Type,
-            "valuation": asset.Valuation
+            "valuation": valuation
         }
         
         if asset.Type.lower() == "agricultural_land" and asset.agricultural_land:
@@ -134,6 +144,7 @@ def get_citizen_assets(
         message="Assets retrieved successfully",
         statusCode=status.HTTP_200_OK
     )
+
 
 @router.get('/family', response_model=schemas.FamilyResponse)
 def get_citizen_family(
@@ -657,7 +668,6 @@ def enrol_in_welfare_scheme(
     citizen = get_citizen_record(current_user, db)
     
     try:
-        # Check if scheme exists
         scheme_query = text("""
             SELECT Scheme_id, Scheme_name, Description, Application_deadline
             FROM Welfare_scheme
@@ -672,44 +682,59 @@ def enrol_in_welfare_scheme(
                 detail=f"Welfare scheme with ID {Scheme_id} not found"
             )
         
-        # Check if application deadline has passed
-        if scheme.Application_deadline and scheme.Application_deadline < (date.today()):
-            logger.error(f"Application deadline for scheme {Scheme_id} has passed")
-            raise HTTPException(
-                status_code=status.HTTP_400_BAD_REQUEST,
-                detail=f"Application deadline for this scheme has passed"
-            )
+        today = date.today()
+        if scheme.Application_deadline:
+            try:
+                if isinstance(scheme.Application_deadline, str):
+                    deadline_date = datetime.strptime(scheme.Application_deadline, '%Y-%m-%d').date()
+                elif isinstance(scheme.Application_deadline, datetime):
+                    deadline_date = scheme.Application_deadline.date()
+                else:
+                    deadline_date = scheme.Application_deadline
+                
+                logger.info(f"Comparing deadline {deadline_date} with today {today}")
+                
+                if deadline_date < today:
+                    logger.error(f"Application deadline ({deadline_date}) for scheme {Scheme_id} has passed")
+                    raise HTTPException(
+                        status_code=status.HTTP_400_BAD_REQUEST,
+                        detail=f"Application deadline for this scheme has passed (Deadline was: {deadline_date})"
+                    )
+            except ValueError as ve:
+                logger.error(f"Error parsing deadline date: {ve}")
+                raise HTTPException(
+                    status_code=status.HTTP_500_INTERNAL_SERVER_ERROR,
+                    detail="Error processing application deadline"
+                )
         
-        # Check if already enrolled - using raw SQL to handle schema differences
         existing_enrol_query = text("""
             SELECT Enrol_id, status 
             FROM Welfare_enrol 
-            WHERE User_name = :username AND Scheme_fk = :scheme_id
+            WHERE Citizen_id = :citizen_id AND Scheme_fk = :scheme_id
         """)
         
         existing_enrolment = db.execute(
             existing_enrol_query, 
-            {"username": current_user.User_name, "scheme_id": Scheme_id}
+            {"citizen_id": citizen.Citizen_id, "scheme_id": Scheme_id}
         ).first()
         
         if existing_enrolment:
-            logger.error(f"User {current_user.User_name} already enrolled in scheme {Scheme_id}")
+            logger.error(f"Citizen {citizen.Citizen_id} already enrolled in scheme {Scheme_id}")
             raise HTTPException(
                 status_code=status.HTTP_400_BAD_REQUEST,
                 detail="You are already enrolled in this scheme"
             )
         
-        # Create new enrollment using raw SQL
         insert_query = text("""
-            INSERT INTO Welfare_enrol (User_name, Scheme_fk, status)
-            VALUES (:username, :scheme_id, :status)
+            INSERT INTO Welfare_enrol (Citizen_id, Scheme_fk, status, created_at)
+            VALUES (:citizen_id, :scheme_id, :status, CURRENT_TIMESTAMP)
             RETURNING Enrol_id, status
         """)
         
         new_enrolment = db.execute(
             insert_query,
             {
-                "username": current_user.User_name,
+                "citizen_id": citizen.Citizen_id,
                 "scheme_id": Scheme_id,
                 "status": "PENDING"
             }
@@ -717,7 +742,7 @@ def enrol_in_welfare_scheme(
         
         db.commit()
         
-        logger.info(f"User {current_user.User_name} successfully enrolled in scheme {Scheme_id}")
+        logger.info(f"Citizen {citizen.Citizen_id} successfully enrolled in scheme {Scheme_id}")
         
         return schemas.WelfareEnrolResponse(
             data="PENDING",
@@ -733,7 +758,7 @@ def enrol_in_welfare_scheme(
         raise HTTPException(
             status_code=status.HTTP_500_INTERNAL_SERVER_ERROR,
             detail=f"Error enrolling in welfare scheme: {str(e)}"
-        )
+)
 
 @router.get('/infrastructure', response_model=schemas.InfrastructureResponse)
 def get_infrastructure_projects(

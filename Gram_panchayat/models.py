@@ -102,8 +102,8 @@ class AgriculturalLand(Base):
     
 class Family(Base):
     __tablename__ = 'Family'
-    
-    Family_id = Column(Integer, primary_key=True, autoincrement=True)
+    id = Column(Integer, primary_key=True, autoincrement=True)
+    Family_id = Column(Integer,nullable=False)
     Head_citizen_id = Column(Integer, ForeignKey('Citizen.Citizen_id'), nullable=False)  
     Member_citizen_id = Column(Integer, ForeignKey('Citizen.Citizen_id'), nullable=False)  
     Relationship = Column(String(30), nullable=False)
@@ -121,7 +121,7 @@ class Issue(Base):
     created_at = Column(DateTime, default=datetime.datetime.utcnow)
     updated_at = Column(DateTime, default=datetime.datetime.utcnow, onupdate=datetime.datetime.utcnow)
     
-    citizen = relationship('Citizen', back_populates='issues')  
+    citizen = relationship('Citizen', back_populates='issues') 
 
 class Document(Base):
     __tablename__ = "Document"
@@ -158,7 +158,7 @@ class WelfareScheme(Base):
     Description = Column(Text)
     Application_deadline = Column(Date)
     Agency_id = Column(Integer, ForeignKey('Government_agencies.Agency_id'), nullable=False)
-    # enrollments = relationship("WelfareEnrol", back_populates="scheme", cascade="all, delete-orphan")
+    enrollments = relationship("WelfareEnrol", back_populates="scheme", cascade="all, delete-orphan")
     
     enrollments = relationship("WelfareEnrol", back_populates="scheme", cascade="all, delete-orphan")
     agency = relationship("GovernmentAgencies", back_populates="schemes")

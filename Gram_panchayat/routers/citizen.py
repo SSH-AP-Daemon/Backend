@@ -758,8 +758,7 @@ def enrol_in_welfare_scheme(
         raise HTTPException(
             status_code=status.HTTP_500_INTERNAL_SERVER_ERROR,
             detail=f"Error enrolling in welfare scheme: {str(e)}"
-)
-
+        )
 @router.get('/infrastructure', response_model=schemas.InfrastructureResponse)
 def get_infrastructure_projects(
     db: Session = Depends(get_db),

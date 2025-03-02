@@ -706,7 +706,7 @@ def get_citizen_welfare_schemes(
         )
         
 
-@router.post('/welfare-enrol', response_model=schemas.WelfareEnrolResponse)
+@router.post('/welfare-enrol/{Scheme_id}', response_model=schemas.WelfareEnrolResponse)
 def enrol_in_welfare_scheme(
     Scheme_id: int,
     db: Session = Depends(get_db),

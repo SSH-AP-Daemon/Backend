@@ -10,10 +10,10 @@ from datetime import date, datetime
 from typing import List
 from collections import defaultdict
 from datetime import datetime
-from ..models import Issue, Citizen, User,Document,FinancialData,WelfareEnrol,WelfareScheme,Infrastructure,GovernmentAgencies
+from ..models import Issue, Citizen, User,Document,FinancialData,WelfareEnrol,WelfareScheme,Infrastructure,GovernmentAgencies,EnvironmentalData
 from sqlalchemy import select
-from ..schemas import IssuesListResponse, IssueResponse,  UpdateIssueRequest, UpdateIssueResponse,FinancialCreateResponse,FinancialDataResponse,FinancialDataRequest,FinancialDataGetResponse,FinancialDataItem,WelfareEnrolUpdateRequest,InfrastructureItem,InfrastructureResponse,InfrastructureUpdateRequest
-from ..schemas import DocumentsListResponse, DocumentResponse,DocumentUploadRequest,DocumentUploadResponse,DocumentCreatedResponse,DocumentDeleteResponse,BasicResponse,WelfareSchemeItem,WelfareSchemesResponse,WelfareEnrolItem,WelfareEnrolResponse
+from ..schemas import IssuesListResponse, IssueResponse,  UpdateIssueRequest, UpdateIssueResponse,FinancialCreateResponse,FinancialDataResponse,FinancialDataRequest,FinancialDataGetResponse,FinancialDataItem,WelfareEnrolUpdateRequest,InfrastructureItem,InfrastructureResponse,InfrastructureUpdateRequest,EnvironmentalDataCreateRequest
+from ..schemas import DocumentsListResponse, DocumentResponse,DocumentUploadRequest,DocumentUploadResponse,DocumentCreatedResponse,DocumentDeleteResponse,BasicResponse,WelfareSchemeItem,WelfareSchemesResponse,WelfareEnrolItem,WelfareEnrolResponse,EnvironmentalDataItem,EnvironmentalDataResponse,DeleteEnvironmentalDataRequest
 from base64 import b64encode, b64decode
 from fastapi import File, UploadFile, Form
 
@@ -1494,4 +1494,223 @@ async def update_infrastructure(
             detail="An unexpected error occurred while updating infrastructure data"
         )
         
+
+@router.get("/environmental-data", response_model=EnvironmentalDataResponse)
+async def get_environmental_data(
+    year: Optional[int] = None,
+    current_user: User = Depends(get_current_user),
+    db: Session = Depends(get_db)
+):
+    # Log information
+    # current_time = datetime.utcnow().strftime("%Y-%m-%d %H:%M:%S")
+    # print(f"Current Date and Time (UTC - YYYY-MM-DD HH:MM:SS formatted): {current_time}")
+    print(f"Current User's Login: {current_user.User_name}")
+    
+    # Verify if the current user has permission
+    if current_user.User_type not in ['PANCHAYAT_EMPLOYEE']:
+        raise HTTPException(
+            status_code=status.HTTP_403_FORBIDDEN,
+            detail="Access denied. Only panchayat employees can access environmental data."
+        )
+
+    try:
+        # Verify database connection is active
+        if not db.is_active:
+            raise HTTPException(
+                status_code=status.HTTP_503_SERVICE_UNAVAILABLE,
+                detail="Database connection is not available. Please try again later."
+            )
         
+        # Query environmental data based on year filter
+        query = db.query(EnvironmentalData)
+        
+        if year:
+            query = query.filter(EnvironmentalData.Year == year)
+        
+        # Execute the query
+        env_data = query.all()
+        
+        if not env_data:
+            return EnvironmentalDataResponse(
+                data=[],
+                message="No environmental data found for the specified criteria",
+                statusCode=status.HTTP_404_NOT_FOUND
+            )
+        
+        # Format response data
+        data_items = []
+        for data in env_data:
+            data_items.append(
+                EnvironmentalDataItem(
+                    Year=data.Year,
+                    Aqi=data.Aqi,
+                    Forest_cover=data.Forest_cover,
+                    Odf=data.Odf,
+                    Afforestation_data=data.Afforestation_data,
+                    Precipitation=data.Precipitation,
+                    Water_quality=data.Water_quality
+                )
+            )
+        
+        return EnvironmentalDataResponse(
+            data=data_items,
+            message="Environmental data retrieved successfully",
+            statusCode=status.HTTP_200_OK
+        )
+
+
+        
+    except HTTPException:
+        # Re-raise HTTP exceptions as they already have status codes
+        raise
+
+    except Exception as e:
+        # Print detailed error for debugging
+        import traceback
+        print(f"Error details: {str(e)}")
+        print(traceback.format_exc())
+        
+        # Don't expose detailed error to client in production
+        raise HTTPException(
+            status_code=status.HTTP_500_INTERNAL_SERVER_ERROR,
+            detail="An unexpected error occurred while retrieving environmental data"
+        )
+        
+        
+@router.delete("/environmental-data", response_model=BasicResponse)
+async def delete_environmental_data(
+    request: DeleteEnvironmentalDataRequest,
+    current_user: User = Depends(get_current_user),
+    db: Session = Depends(get_db)
+):
+    # Log information
+    current_time = datetime.utcnow().strftime("%Y-%m-%d %H:%M:%S")
+    print(f"Current Date and Time (UTC - YYYY-MM-DD HH:MM:SS formatted): {current_time}")
+    print(f"Current User's Login: {current_user.User_name}")
+    
+    # Verify if the current user has permission
+    if current_user.User_type not in ['PANCHAYAT_EMPLOYEE']:
+        raise HTTPException(
+            status_code=status.HTTP_403_FORBIDDEN,
+            detail="Access denied. Only panchayat employees can delete environmental data."
+        )
+
+    try:
+        # Verify database connection is active
+        if not db.is_active:
+            raise HTTPException(
+                status_code=status.HTTP_503_SERVICE_UNAVAILABLE,
+                detail="Database connection is not available. Please try again later."
+            )
+        
+        # Find the environmental data record
+        env_data = db.query(EnvironmentalData).filter(EnvironmentalData.Year == request.Year).first()
+        
+        if not env_data:
+            raise HTTPException(
+                status_code=status.HTTP_404_NOT_FOUND,
+                detail=f"Environmental data for year {request.Year} not found"
+            )
+        
+        # Delete the record
+        db.delete(env_data)
+        db.commit()
+        
+        return BasicResponse(
+            message=f"Environmental data for year {request.Year} deleted successfully",
+            statusCode=status.HTTP_200_OK
+        )
+
+        
+    except HTTPException:
+        # Re-raise HTTP exceptions as they already have status codes
+        raise
+
+    except Exception as e:
+        # Print detailed error for debugging and rollback transaction
+        db.rollback()
+        import traceback
+        print(f"Error details: {str(e)}")
+        print(traceback.format_exc())
+        
+        # Don't expose detailed error to client in production
+        raise HTTPException(
+            status_code=status.HTTP_500_INTERNAL_SERVER_ERROR,
+            detail="An unexpected error occurred while deleting environmental data"
+        )
+
+
+
+
+@router.post("/environmental-data", response_model=BasicResponse)
+async def create_environmental_data(
+    request: EnvironmentalDataCreateRequest,
+    current_user: User = Depends(get_current_user),
+    db: Session = Depends(get_db)
+):
+    # Log information
+    # current_time = datetime.utcnow().strftime("%Y-%m-%d %H:%M:%S")
+    # print(f"Current Date and Time (UTC - YYYY-MM-DD HH:MM:SS formatted): {current_time}")
+    print(f"Current User's Login: {current_user.User_name}")
+    
+    # Verify if the current user has permission
+    if current_user.User_type not in ['PANCHAYAT_EMPLOYEE']:
+        raise HTTPException(
+            status_code=status.HTTP_403_FORBIDDEN,
+            detail="Access denied. Only panchayat employees can create environmental data records."
+        )
+
+    try:
+        # Verify database connection is active
+        if not db.is_active:
+            raise HTTPException(
+                status_code=status.HTTP_503_SERVICE_UNAVAILABLE,
+                detail="Database connection is not available. Please try again later."
+            )
+        
+        # Check if environmental data for this year already exists
+        existing_data = db.query(EnvironmentalData).filter(EnvironmentalData.Year == request.Year).first()
+        
+        if existing_data:
+            raise HTTPException(
+                status_code=status.HTTP_409_CONFLICT,
+                detail=f"Environmental data for year {request.Year} already exists. Use the update endpoint instead."
+            )
+        
+        # Create new environmental data record
+        new_env_data = EnvironmentalData(
+            Year=request.Year,
+            Aqi=request.Aqi,
+            Forest_cover=request.Forest_cover,
+            Odf=request.Odf,
+            Afforestation_data=request.Afforestation_data,
+            Precipitation=request.Precipitation,
+            Water_quality=request.Water_quality
+        )
+        
+        # Add to database and commit
+        db.add(new_env_data)
+        db.commit()
+        
+        return BasicResponse(
+            message=f"Environmental data for year {request.Year} created successfully",
+            statusCode=status.HTTP_201_CREATED
+        )
+
+        
+    except HTTPException:
+        # Re-raise HTTP exceptions as they already have status codes
+        raise
+
+    except Exception as e:
+        # Print detailed error for debugging and rollback transaction
+        db.rollback()
+        import traceback
+        print(f"Error details: {str(e)}")
+        print(traceback.format_exc())
+        
+        # Don't expose detailed error to client in production
+        raise HTTPException(
+            status_code=status.HTTP_500_INTERNAL_SERVER_ERROR,
+            detail="An unexpected error occurred while creating environmental data"
+        )

@@ -640,3 +640,16 @@ class EnvironmentalDataResponse(BaseModel):
     data: List[EnvironmentalDataItem] = []
     message: str
     statusCode: int
+
+class DeleteEnvironmentalDataRequest(BaseModel):
+    Year: int
+
+
+class EnvironmentalDataCreateRequest(BaseModel):
+    Year: int
+    Aqi: float
+    Forest_cover: float
+    Odf: float
+    Afforestation_data: float
+    Precipitation: float
+    Water_quality: float

@@ -10,13 +10,13 @@ from datetime import date, datetime
 from typing import List
 from collections import defaultdict
 from datetime import datetime
-from ..models import Issue, Citizen, User,Document,FinancialData
+from ..models import Issue, Citizen, User,Document,FinancialData,WelfareEnrol,WelfareScheme,Infrastructure,GovernmentAgencies,EnvironmentalData
 from sqlalchemy import select
-from ..schemas import IssuesListResponse, IssueResponse,  UpdateIssueRequest, UpdateIssueResponse,FinancialCreateResponse,FinancialDataResponse,FinancialDataRequest,FinancialDataGetResponse,FinancialDataItem
-from ..schemas import DocumentsListResponse, DocumentResponse,DocumentUploadRequest,DocumentUploadResponse,DocumentCreatedResponse,DocumentDeleteResponse
+from ..schemas import IssuesListResponse, IssueResponse,  UpdateIssueRequest, UpdateIssueResponse,FinancialCreateResponse,FinancialDataResponse,FinancialDataRequest,FinancialDataGetResponse,FinancialDataItem,WelfareEnrolUpdateRequest,InfrastructureItem,InfrastructureResponse,InfrastructureUpdateRequest,EnvironmentalDataCreateRequest
+from ..schemas import DocumentsListResponse, DocumentResponse,DocumentUploadRequest,DocumentUploadResponse,DocumentCreatedResponse,DocumentDeleteResponse,BasicResponse,WelfareSchemeItem,WelfareSchemesResponse,WelfareEnrolItem,WelfareEnrolResponse,EnvironmentalDataItem,EnvironmentalDataResponse,DeleteEnvironmentalDataRequest
 from base64 import b64encode, b64decode
 from fastapi import File, UploadFile, Form
-from pydantic import parse_obj_as
+
 from typing import Optional
 
 
@@ -935,7 +935,7 @@ async def delete_document(
 
 ############################################################################################
 
-@router.post("/financial_data", response_model=FinancialCreateResponse)
+@router.post("/financial-data", response_model=FinancialCreateResponse)
 async def create_financial_data(
     request: FinancialDataRequest,
     current_user: User = Depends(get_current_user),
@@ -1014,7 +1014,7 @@ async def create_financial_data(
         )
         
 
-@router.get("/financial_data", response_model=FinancialDataGetResponse)
+@router.get("/financial-data", response_model=FinancialDataGetResponse)
 async def get_financial_data(
     user_name: str,
     year: Optional[int] = None,
@@ -1088,4 +1088,629 @@ async def get_financial_data(
         raise HTTPException(
             status_code=status.HTTP_500_INTERNAL_SERVER_ERROR,
             detail=f"An error occurred while retrieving financial data: {str(e)}"
+        )
+
+
+@router.delete("/financial-data", response_model=BasicResponse)
+async def delete_financial_data(
+    Financial_id: int,
+    current_user: User = Depends(get_current_user),
+    db: Session = Depends(get_db)
+):
+    try:
+        # Find the financial data record
+        financial_data = db.query(FinancialData).filter(
+            FinancialData.Financial_id == Financial_id
+        ).first()
+        
+        if not financial_data:
+            raise HTTPException(
+                status_code=status.HTTP_404_NOT_FOUND,
+                detail=f"Financial data with ID {Financial_id} not found"
+            )
+        
+        # Get the citizen and associated user
+        citizen = db.query(Citizen).filter(
+            Citizen.Citizen_id == financial_data.Citizen_id
+        ).first()
+        
+        if not citizen:
+            raise HTTPException(
+                status_code=status.HTTP_404_NOT_FOUND,
+                detail="Citizen record not found for this financial data"
+            )
+        
+        user = db.query(User).filter(User.User_name == citizen.User_name).first()
+        
+        # Verify if the current user has permission to delete this record
+        if (current_user.User_name != user.User_name and 
+            current_user.User_type not in ['PANCHAYAT_EMPLOYEE']):
+            raise HTTPException(
+                status_code=status.HTTP_403_FORBIDDEN,
+                detail="You don't have permission to delete financial data for this user"
+            )
+        
+        # Delete the financial data record
+        db.delete(financial_data)
+        db.commit()
+        
+        return BasicResponse(
+            message=f"Financial data with ID {Financial_id} deleted successfully",
+            statusCode=status.HTTP_200_OK
+        )
+        
+    except HTTPException:
+        raise
+    
+    except Exception as e:
+        db.rollback()
+        raise HTTPException(
+            status_code=status.HTTP_500_INTERNAL_SERVER_ERROR,
+            detail=f"An error occurred while deleting financial data: {str(e)}"
+        )
+        
+        
+@router.get("/welfare-schemes", response_model=WelfareSchemesResponse)
+async def get_welfare_schemes(
+    current_user: User = Depends(get_current_user),
+    db: Session = Depends(get_db)
+):
+    # Verify if the current user has permission
+    if current_user.User_type not in ['PANCHAYAT_EMPLOYEE']:
+        raise HTTPException(
+            status_code=status.HTTP_403_FORBIDDEN,
+            detail="Access denied. Only panchayat employees can access welfare schemes data."
+        )
+
+    try:
+        # Build the query with optional filters
+        query = db.query(WelfareScheme)
+        
+        # Apply scheme_name filter if provided - using ilike for case-insensitive search
+
+        
+        # Execute the query
+        schemes = query.all()
+        
+        if not schemes:
+            return WelfareSchemesResponse(
+                data=[],
+                message="No welfare schemes found for the specified criteria",
+                statusCode=status.HTTP_404_NOT_FOUND
+            )
+        
+        # Format the response data
+        data_items = []
+        for scheme in schemes:
+            data_items.append(
+                WelfareSchemeItem(
+                    Scheme_id=scheme.Scheme_id,
+                    Scheme_name=scheme.Scheme_name,
+                    Description=scheme.Description,
+                    Application_deadline=scheme.Application_deadline
+                )
+            )
+        
+        return WelfareSchemesResponse(
+            data=data_items,
+            message="Welfare schemes retrieved successfully",
+            statusCode=status.HTTP_200_OK
+        )
+
+    except HTTPException:
+        raise
+
+    except Exception as e:
+        raise HTTPException(
+            status_code=status.HTTP_500_INTERNAL_SERVER_ERROR,
+            detail=f"An error occurred while retrieving welfare schemes: {str(e)}"
+        )
+        
+@router.get("/welfare-enrol", response_model=WelfareEnrolResponse)
+async def get_welfare_enrollments(
+
+    current_user: User = Depends(get_current_user),
+    db: Session = Depends(get_db)
+):
+    # Verify if the current user has permission
+    if current_user.User_type not in ['PANCHAYAT_EMPLOYEE']:
+        raise HTTPException(
+            status_code=status.HTTP_403_FORBIDDEN,
+            detail="Access denied. Only panchayat employees can access welfare enrollment data."
+        )
+
+    try:
+        # Build query for welfare enrollments with joins to get required data
+        query = db.query(
+            WelfareEnrol, 
+            Citizen.Citizen_id, 
+            User.User_name, 
+            WelfareScheme.Scheme_id,
+            WelfareScheme.Scheme_name
+        ).join(
+            Citizen, WelfareEnrol.Citizen_id == Citizen.Citizen_id
+        ).join(
+            User, Citizen.User_name == User.User_name
+        ).join(
+            WelfareScheme, WelfareEnrol.Scheme_fk == WelfareScheme.Scheme_id
+        )
+        
+
+        
+        # Execute the query
+        enrollments = query.all()
+        
+        if not enrollments:
+            return WelfareEnrolResponse(
+                data=[],
+                message="No welfare enrollments found for the specified criteria",
+                statusCode=status.HTTP_404_NOT_FOUND
+            )
+        
+        # Format the response data
+        data_items = []
+        for enrollment, citizen_id, user_name, scheme_id, scheme_name in enrollments:
+            data_items.append(
+                WelfareEnrolItem(
+                    Citizen_fk=citizen_id,
+                    user_name=user_name,
+                    Scheme_fk=scheme_id,
+                    scheme_name=scheme_name,
+                    status=enrollment.status
+                )
+            )
+        
+        return WelfareEnrolResponse(
+            data=data_items,
+            message="Welfare enrollments retrieved successfully",
+            statusCode=status.HTTP_200_OK
+        )
+
+    except HTTPException:
+        raise
+
+    except Exception as e:
+        raise HTTPException(
+            status_code=status.HTTP_500_INTERNAL_SERVER_ERROR,
+            detail=f"An error occurred while retrieving welfare enrollments: {str(e)}"
+        )
+
+
+
+@router.put("/welfare-enrol", response_model=BasicResponse)
+async def update_welfare_enrollment(
+    request: WelfareEnrolUpdateRequest,
+    current_user: User = Depends(get_current_user),
+    db: Session = Depends(get_db)
+):
+    # Log information
+    current_time = datetime.utcnow().strftime("%Y-%m-%d %H:%M:%S")
+    print(f"Current Date and Time (UTC): {current_time}")
+    print(f"Current User's Login: {current_user.User_name}")
+    
+    # Verify if the current user has permission
+    if current_user.User_type not in ['PANCHAYAT_EMPLOYEE']:
+        raise HTTPException(
+            status_code=status.HTTP_403_FORBIDDEN,
+            detail="Access denied. Only panchayat employees can update welfare enrollment status."
+        )
+
+    try:
+        # Find the welfare enrollment
+        enrollment = db.query(WelfareEnrol).filter(
+            WelfareEnrol.Scheme_fk == request.scheme_id,
+            WelfareEnrol.Citizen_id == request.citizen_id
+        ).first()
+        
+        if not enrollment:
+            raise HTTPException(
+                status_code=status.HTTP_404_NOT_FOUND,
+                detail=f"No welfare enrollment found for citizen ID {request.citizen_id} and scheme ID {request.scheme_id}"
+            )
+        
+        # Validate status
+        valid_statuses = [ "APPROVED", "REJECTED"]
+        if request.status not in valid_statuses:
+            raise HTTPException(
+                status_code=status.HTTP_400_BAD_REQUEST,
+                detail=f"Invalid status. Valid options are: {', '.join(valid_statuses)}"
+            )
+        
+        # Handle based on status
+        if request.status == "REJECTED":
+            # Remove the welfare enrollment entry
+            db.delete(enrollment)
+            db.commit()
+            
+            return BasicResponse(
+                message=f"Welfare enrollment for citizen ID {request.citizen_id} and scheme ID {request.scheme_id} was rejected and removed",
+                statusCode=status.HTTP_200_OK
+            )
+        else:
+            # Update the status
+            enrollment.status = request.status
+            db.commit()
+            
+            return BasicResponse(
+                message=f"Welfare enrollment status updated to {request.status} successfully",
+                statusCode=status.HTTP_200_OK
+            )
+
+    except HTTPException:
+        raise
+
+    except Exception as e:
+        db.rollback()
+        raise HTTPException(
+            status_code=status.HTTP_500_INTERNAL_SERVER_ERROR,
+            detail=f"An error occurred while processing welfare enrollment: {str(e)}"
+        )
+        
+
+
+
+
+@router.get("/infrastructure", response_model=InfrastructureResponse)
+async def get_infrastructure(
+    current_user: User = Depends(get_current_user),
+    db: Session = Depends(get_db)
+):
+    # Log information
+    current_time = datetime.utcnow().strftime("%Y-%m-%d %H:%M:%S")
+    print(f"Current Date and Time (UTC): {current_time}")
+    print(f"Current User's Login: {current_user.User_name}")
+    
+    # Verify if the current user has permission
+    if current_user.User_type not in ['PANCHAYAT_EMPLOYEE']:
+        raise HTTPException(
+            status_code=status.HTTP_403_FORBIDDEN,
+            detail="Access denied. Only panchayat employees can access infrastructure data."
+        )
+
+    try:
+        # Query infrastructure data with join to get government agency user name
+        # Using the correct model relations
+        logger.info("Querying infrastructure data with government agency user name")
+        infrastructure_data = db.query(
+            Infrastructure, 
+            GovernmentAgencies.User_name
+        ).join(
+            GovernmentAgencies, 
+            Infrastructure.Agency_id == GovernmentAgencies.Agency_id
+        ).all()
+        
+        logger.info(infrastructure_data)
+        
+        
+        if not infrastructure_data:
+            return InfrastructureResponse(
+                data=[],
+                message="No infrastructure data found",
+                statusCode=status.HTTP_404_NOT_FOUND
+            )
+        
+        # Format response data
+        data_items = []
+        for infra, govt_agency_user_name in infrastructure_data:
+            data_items.append(
+                InfrastructureItem(
+                    Infra_id=infra.Infra_id,
+                    Description=infra.Description,
+                    Location=infra.Location,
+                    Funding=infra.Funding,
+                    Actual_cost=infra.Actual_cost,
+                    Government_agencies_fk=infra.Agency_id,
+                    government_agency_user_name=govt_agency_user_name
+                )
+            )
+        
+        return InfrastructureResponse(
+            data=data_items,
+            message="Infrastructure data retrieved successfully",
+            statusCode=status.HTTP_200_OK
+        )
+
+    except HTTPException:
+        raise
+
+    except Exception as e:
+        # Print detailed error for debugging
+        import traceback
+        print(f"Error details: {str(e)}")
+        print(traceback.format_exc())
+        
+        raise HTTPException(
+            status_code=status.HTTP_500_INTERNAL_SERVER_ERROR,
+            detail=f"An error occurred while retrieving infrastructure data: {str(e)}"
+        )
+        
+        
+@router.put("/infrastructure", response_model=BasicResponse)
+async def update_infrastructure(
+    request: InfrastructureUpdateRequest,
+    current_user: User = Depends(get_current_user),
+    db: Session = Depends(get_db)
+):
+    # Log information
+    current_time = datetime.utcnow().strftime("%Y-%m-%d %H:%M:%S")
+    print(f"Current Date and Time (UTC - YYYY-MM-DD HH:MM:SS formatted): {current_time}")
+    print(f"Current User's Login: {current_user.User_name}")
+    
+    # Verify if the current user has permission
+    if current_user.User_type not in ['PANCHAYAT_EMPLOYEE']:
+        raise HTTPException(
+            status_code=status.HTTP_403_FORBIDDEN,
+            detail="Access denied. Only panchayat employees can update infrastructure data."
+        )
+
+    try:
+        # Verify database connection is active
+        if not db.is_active:
+            raise HTTPException(
+                status_code=status.HTTP_503_SERVICE_UNAVAILABLE,
+                detail="Database connection is not available. Please try again later."
+            )
+        
+        # Find the infrastructure entry
+        infra = db.query(Infrastructure).filter(Infrastructure.Infra_id == request.Infra_id).first()
+        
+        if not infra:
+            raise HTTPException(
+                status_code=status.HTTP_404_NOT_FOUND,
+                detail=f"Infrastructure with ID {request.Infra_id} not found"
+            )
+        
+        # Validate the actual_cost
+        if request.actual_cost < 0:
+            raise HTTPException(
+                status_code=status.HTTP_400_BAD_REQUEST,
+                detail="Actual cost cannot be negative"
+            )
+        
+        # Update the actual_cost
+        infra.Actual_cost = request.actual_cost
+        db.commit()
+        
+        return BasicResponse(
+            message=f"Infrastructure actual cost updated successfully to {request.actual_cost}",
+            statusCode=status.HTTP_200_OK
+        )
+
+        
+    except HTTPException:
+        # Re-raise HTTP exceptions as they already have status codes
+        raise
+
+    except Exception as e:
+        # Print detailed error for debugging and rollback transaction
+        db.rollback()
+        import traceback
+        print(f"Error details: {str(e)}")
+        print(traceback.format_exc())
+        
+        # Don't expose detailed error to client in production
+        raise HTTPException(
+            status_code=status.HTTP_500_INTERNAL_SERVER_ERROR,
+            detail="An unexpected error occurred while updating infrastructure data"
+        )
+        
+
+@router.get("/environmental-data", response_model=EnvironmentalDataResponse)
+async def get_environmental_data(
+    year: Optional[int] = None,
+    current_user: User = Depends(get_current_user),
+    db: Session = Depends(get_db)
+):
+    # Log information
+    # current_time = datetime.utcnow().strftime("%Y-%m-%d %H:%M:%S")
+    # print(f"Current Date and Time (UTC - YYYY-MM-DD HH:MM:SS formatted): {current_time}")
+    print(f"Current User's Login: {current_user.User_name}")
+    
+    # Verify if the current user has permission
+    if current_user.User_type not in ['PANCHAYAT_EMPLOYEE']:
+        raise HTTPException(
+            status_code=status.HTTP_403_FORBIDDEN,
+            detail="Access denied. Only panchayat employees can access environmental data."
+        )
+
+    try:
+        # Verify database connection is active
+        if not db.is_active:
+            raise HTTPException(
+                status_code=status.HTTP_503_SERVICE_UNAVAILABLE,
+                detail="Database connection is not available. Please try again later."
+            )
+        
+        # Query environmental data based on year filter
+        query = db.query(EnvironmentalData)
+        
+        if year:
+            query = query.filter(EnvironmentalData.Year == year)
+        
+        # Execute the query
+        env_data = query.all()
+        
+        if not env_data:
+            return EnvironmentalDataResponse(
+                data=[],
+                message="No environmental data found for the specified criteria",
+                statusCode=status.HTTP_404_NOT_FOUND
+            )
+        
+        # Format response data
+        data_items = []
+        for data in env_data:
+            data_items.append(
+                EnvironmentalDataItem(
+                    Year=data.Year,
+                    Aqi=data.Aqi,
+                    Forest_cover=data.Forest_cover,
+                    Odf=data.Odf,
+                    Afforestation_data=data.Afforestation_data,
+                    Precipitation=data.Precipitation,
+                    Water_quality=data.Water_quality
+                )
+            )
+        
+        return EnvironmentalDataResponse(
+            data=data_items,
+            message="Environmental data retrieved successfully",
+            statusCode=status.HTTP_200_OK
+        )
+
+
+        
+    except HTTPException:
+        # Re-raise HTTP exceptions as they already have status codes
+        raise
+
+    except Exception as e:
+        # Print detailed error for debugging
+        import traceback
+        print(f"Error details: {str(e)}")
+        print(traceback.format_exc())
+        
+        # Don't expose detailed error to client in production
+        raise HTTPException(
+            status_code=status.HTTP_500_INTERNAL_SERVER_ERROR,
+            detail="An unexpected error occurred while retrieving environmental data"
+        )
+        
+        
+@router.delete("/environmental-data", response_model=BasicResponse)
+async def delete_environmental_data(
+    request: DeleteEnvironmentalDataRequest,
+    current_user: User = Depends(get_current_user),
+    db: Session = Depends(get_db)
+):
+    # Log information
+    current_time = datetime.utcnow().strftime("%Y-%m-%d %H:%M:%S")
+    print(f"Current Date and Time (UTC - YYYY-MM-DD HH:MM:SS formatted): {current_time}")
+    print(f"Current User's Login: {current_user.User_name}")
+    
+    # Verify if the current user has permission
+    if current_user.User_type not in ['PANCHAYAT_EMPLOYEE']:
+        raise HTTPException(
+            status_code=status.HTTP_403_FORBIDDEN,
+            detail="Access denied. Only panchayat employees can delete environmental data."
+        )
+
+    try:
+        # Verify database connection is active
+        if not db.is_active:
+            raise HTTPException(
+                status_code=status.HTTP_503_SERVICE_UNAVAILABLE,
+                detail="Database connection is not available. Please try again later."
+            )
+        
+        # Find the environmental data record
+        env_data = db.query(EnvironmentalData).filter(EnvironmentalData.Year == request.Year).first()
+        
+        if not env_data:
+            raise HTTPException(
+                status_code=status.HTTP_404_NOT_FOUND,
+                detail=f"Environmental data for year {request.Year} not found"
+            )
+        
+        # Delete the record
+        db.delete(env_data)
+        db.commit()
+        
+        return BasicResponse(
+            message=f"Environmental data for year {request.Year} deleted successfully",
+            statusCode=status.HTTP_200_OK
+        )
+
+        
+    except HTTPException:
+        # Re-raise HTTP exceptions as they already have status codes
+        raise
+
+    except Exception as e:
+        # Print detailed error for debugging and rollback transaction
+        db.rollback()
+        import traceback
+        print(f"Error details: {str(e)}")
+        print(traceback.format_exc())
+        
+        # Don't expose detailed error to client in production
+        raise HTTPException(
+            status_code=status.HTTP_500_INTERNAL_SERVER_ERROR,
+            detail="An unexpected error occurred while deleting environmental data"
+        )
+
+
+
+
+@router.post("/environmental-data", response_model=BasicResponse)
+async def create_environmental_data(
+    request: EnvironmentalDataCreateRequest,
+    current_user: User = Depends(get_current_user),
+    db: Session = Depends(get_db)
+):
+    # Log information
+    # current_time = datetime.utcnow().strftime("%Y-%m-%d %H:%M:%S")
+    # print(f"Current Date and Time (UTC - YYYY-MM-DD HH:MM:SS formatted): {current_time}")
+    print(f"Current User's Login: {current_user.User_name}")
+    
+    # Verify if the current user has permission
+    if current_user.User_type not in ['PANCHAYAT_EMPLOYEE']:
+        raise HTTPException(
+            status_code=status.HTTP_403_FORBIDDEN,
+            detail="Access denied. Only panchayat employees can create environmental data records."
+        )
+
+    try:
+        # Verify database connection is active
+        if not db.is_active:
+            raise HTTPException(
+                status_code=status.HTTP_503_SERVICE_UNAVAILABLE,
+                detail="Database connection is not available. Please try again later."
+            )
+        
+        # Check if environmental data for this year already exists
+        existing_data = db.query(EnvironmentalData).filter(EnvironmentalData.Year == request.Year).first()
+        
+        if existing_data:
+            raise HTTPException(
+                status_code=status.HTTP_409_CONFLICT,
+                detail=f"Environmental data for year {request.Year} already exists. Use the update endpoint instead."
+            )
+        
+        # Create new environmental data record
+        new_env_data = EnvironmentalData(
+            Year=request.Year,
+            Aqi=request.Aqi,
+            Forest_cover=request.Forest_cover,
+            Odf=request.Odf,
+            Afforestation_data=request.Afforestation_data,
+            Precipitation=request.Precipitation,
+            Water_quality=request.Water_quality
+        )
+        
+        # Add to database and commit
+        db.add(new_env_data)
+        db.commit()
+        
+        return BasicResponse(
+            message=f"Environmental data for year {request.Year} created successfully",
+            statusCode=status.HTTP_201_CREATED
+        )
+
+        
+    except HTTPException:
+        # Re-raise HTTP exceptions as they already have status codes
+        raise
+
+    except Exception as e:
+        # Print detailed error for debugging and rollback transaction
+        db.rollback()
+        import traceback
+        print(f"Error details: {str(e)}")
+        print(traceback.format_exc())
+        
+        # Don't expose detailed error to client in production
+        raise HTTPException(
+            status_code=status.HTTP_500_INTERNAL_SERVER_ERROR,
+            detail="An unexpected error occurred while creating environmental data"
         )

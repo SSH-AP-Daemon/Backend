@@ -271,11 +271,9 @@ def get_citizen_issues(
                 detail="Database schema error"
             )
         
-        # Process results
         issues = result.all()
         logger.info(f"Found {len(issues)} issues for user: {current_user.User_name}")
         
-        # Format the response
         issue_data_list = []
         for issue in issues:
             issue_data = {
@@ -602,7 +600,6 @@ def get_citizen_welfare_schemes(
         inspector = inspect(db.bind)
         columns = [col['name'] for col in inspector.get_columns('Welfare_enrol')]
         
-        # Get all enrolled schemes for the current citizen
         if 'Citizen_id' in columns:
             # New schema
             enrollments_query = text("""

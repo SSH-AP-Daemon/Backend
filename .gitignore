@@ -1,2 +1,5 @@
+# Ignore a file in the backend folder
 ssh_ap.db
-Backend\Gram_panchayat\__pycache__
+
+# Ignore a file in the backend/Gram_panchayat folder
+Gram_panchayat/__pycache__

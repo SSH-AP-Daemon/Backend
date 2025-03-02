@@ -568,3 +568,75 @@ class FinancialDataGetResponse(BaseModel):
     message: str
     statusCode: int
     
+class BasicResponse(BaseModel):
+    message: str
+    statusCode: int
+    
+    
+# this part is for schemas for welfare schemes panchayat employee###################################################
+
+class WelfareSchemeItem(BaseModel):
+    Scheme_id: int
+    Scheme_name: str
+    Description: Optional[str] = None
+    Application_deadline: Optional[date] = None
+
+class WelfareSchemesResponse(BaseModel):
+    data: List[WelfareSchemeItem] = []
+    message: str
+    statusCode: int
+    
+class WelfareEnrolItem(BaseModel):
+    Citizen_fk: int
+    user_name: str
+    Scheme_fk: int
+    scheme_name: str
+    status: str
+
+class WelfareEnrolResponse(BaseModel):
+    data: List[WelfareEnrolItem] = []
+    message: str
+    statusCode: int
+    
+class WelfareEnrolUpdateRequest(BaseModel):
+    scheme_id: int
+    citizen_id: int
+    status: str
+    
+    
+    
+# this part is for schemas for infrastructure panchayat employee###################################################
+
+class InfrastructureItem(BaseModel):
+    Infra_id: int
+    Description: Optional[str] = None
+    Location: Optional[str] = None
+    Funding: float
+    Actual_cost: float
+    Government_agencies_fk: int
+    government_agency_user_name: str
+
+class InfrastructureResponse(BaseModel):
+    data: List[InfrastructureItem] = []
+    message: str
+    statusCode: int
+    
+    
+class InfrastructureUpdateRequest(BaseModel):
+    Infra_id: int
+    actual_cost: float
+    
+    
+class EnvironmentalDataItem(BaseModel):
+    Year: int
+    Aqi: float
+    Forest_cover: float
+    Odf: float
+    Afforestation_data: float
+    Precipitation: float
+    Water_quality: float
+
+class EnvironmentalDataResponse(BaseModel):
+    data: List[EnvironmentalDataItem] = []
+    message: str
+    statusCode: int

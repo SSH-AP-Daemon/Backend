@@ -42,7 +42,6 @@ class Citizen(Base):
     issues = relationship('Issue', back_populates='citizen', cascade="all, delete-orphan")
     financial_data = relationship("FinancialData", back_populates="citizen", cascade="all, delete-orphan")
     welfare_enrollments = relationship("WelfareEnrol", back_populates="citizen", cascade="all, delete-orphan")
-    infrastructures = relationship("Infrastructure", back_populates="citizen", cascade="all, delete-orphan")
     
     headed_families = relationship('Family', foreign_keys='Family.Head_citizen_id', back_populates='family_head', cascade="all, delete-orphan")
     member_of_families = relationship('Family', foreign_keys='Family.Member_citizen_id', back_populates='family_member', cascade="all, delete-orphan")
@@ -186,7 +185,4 @@ class Infrastructure(Base):
     Funding = Column(Float, nullable=False)
     Actual_cost = Column(Float, nullable=False, default=0)
     Agency_id = Column(Integer, ForeignKey('Government_agencies.Agency_id'), nullable=False)
-    Citizen_id = Column(Integer, ForeignKey('Citizen.Citizen_id'), nullable=True)  
-    
     agency = relationship("GovernmentAgencies", back_populates="infrastructures")
-    citizen = relationship("Citizen", back_populates="infrastructures") 

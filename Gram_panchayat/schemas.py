@@ -1,6 +1,3 @@
-# Current Date and Time (UTC - YYYY-MM-DD HH:MM:SS formatted): 2025-03-01 17:28:35
-# Current User's Login: SRINJOY59
-
 from pydantic import BaseModel, Field
 from typing import Optional, Literal, Union, Annotated, List
 from datetime import date, datetime
@@ -246,6 +243,7 @@ class WelfareEnrolResponse(BaseModel):
         from_attributes = True
 
 class InfrastructureData(BaseModel):
+    Infra_id: int
     Description: Optional[str] = None
     Location: Optional[str] = None
     Funding: float
@@ -261,6 +259,24 @@ class InfrastructureResponse(BaseModel):
     
     class Config:
         from_attributes = True
+
+class InfrastructureCreate(BaseModel):
+    Description: Optional[str] = None
+    Location: Optional[str] = None
+    Funding: float
+    Actual_cost: float = 0
+    
+    class Config:
+        from_attributes = True
+
+class InfrastructureCreateResponse(BaseModel):
+    Infra_id: int
+    message: str
+    statusCode: int
+    
+    class Config:
+        from_attributes = True
+
         
 class WelfareSchemeCreate(BaseModel):
     Scheme_name: str

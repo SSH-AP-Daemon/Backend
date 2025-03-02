@@ -7,4 +7,3 @@ from .. import jwt_handler, models, schemas
 from pydantic import BaseModel
 import logging
 from datetime import date, datetime
-
